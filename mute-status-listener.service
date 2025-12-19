@@ -1,0 +1,13 @@
+[Unit]
+Description=Stream Deck Mute Status Listener
+After=pulseaudio.service pipewire.service
+PartOf=streamdeck.service
+
+[Service]
+Type=simple
+ExecStart=/home/zach2825/streamdeck-actions/mute-status-listener.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

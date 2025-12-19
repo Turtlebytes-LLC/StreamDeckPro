@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Helper to create new action scripts
+#
+
+echo "Stream Deck - Create Action Script"
+echo "===================================="
+echo ""
+echo "What type of action?"
+echo "  1) Button (1-8)"
+echo "  2) Dial rotate clockwise (1-4)"
+echo "  3) Dial rotate counter-clockwise (1-4)"
+echo "  4) Dial press (1-4)"
+echo "  5) Touchscreen zone (1-4)"
+echo ""
+read -p "Choice: " type
+
+case $type in
+    1)
+        read -p "Button number (1-8): " num
+        script="~/streamdeck-actions/buttons/button-$num.sh"
+        ;;
+    2)
+        read -p "Dial number (1-4): " num
+        script="~/streamdeck-actions/dials/dial-$num-cw.sh"
+        ;;
+    3)
+        read -p "Dial number (1-4): " num
+        script="~/streamdeck-actions/dials/dial-$num-ccw.sh"
+        ;;
+    4)
+        read -p "Dial number (1-4): " num
+        script="~/streamdeck-actions/dials/dial-$num-press.sh"
+        ;;
+    5)
+        read -p "Touch zone (1-4): " num
+        script="~/streamdeck-actions/touchscreen/touch-$num.sh"
+        ;;
+    *)
+        echo "Invalid choice"
+        exit 1
+        ;;
+esac
+
+script=$(eval echo $script)
+
+if [ -f "$script" ]; then
+    echo ""
+    echo "Script already exists: $script"
+    read -p "Edit it? (y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        ${EDITOR:-nano} "$script"
+    fi
+else
+    cat > "$script" << 'SCRIPTEOF'
+#!/bin/bash
+#
+# Add your commands here
+#
+
+notify-send "Stream Deck" "Action triggered!"
+
+# Example: Launch application
+# firefox &
+
+# Example: Run command  
+# pactl set-sink-volume @DEFAULT_SINK@ +5%
+
+# Example: Execute script
+# ~/my-scripts/do-something.sh
+SCRIPTEOF
+
+    chmod +x "$script"
+    echo ""
+    echo "Created: $script"
+    echo ""
+    read -p "Edit now? (y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        ${EDITOR:-nano} "$script"
+    fi
+fi
+
+echo ""
+echo "Script ready! Restart the daemon to use it."

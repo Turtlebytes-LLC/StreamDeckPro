@@ -1,0 +1,186 @@
+================================================================================
+                      STREAM DECK PLUS - COMPLETE SYSTEM
+================================================================================
+
+                    🎉 50 CUSTOMIZABLE ACTIONS AVAILABLE! 🎉
+
+YOUR STREAM DECK NOW SUPPORTS:
+-------------------------------
+✓ ALL Gestures (swipes, long press, taps, rotations)
+✓ Custom Images for buttons and touchscreen zones
+✓ Custom Labels overlaid on images
+✓ Complete Logging of all actions
+✓ 128 Ready-to-use example scripts (50 general + 78 dev)
+✓ Simple bash script-based system - NO complex config!
+✓ Easy Configuration UI - point and click setup!
+
+
+QUICK START:
+------------
+  ~/streamdeck-actions/start
+
+That's it! Daemon runs and your Stream Deck is fully operational!
+
+
+CONFIGURATION UI:
+-----------------
+  ~/streamdeck-actions/configure
+
+Simple point-and-click interface to:
+  • Assign scripts to any button/dial/touchscreen action
+  • Browse and select from 128 example scripts
+  • Set custom images for buttons and touchscreen zones
+  • Add text labels
+  • Record keyboard macros
+  • Drag-and-drop scripts and images
+  • Enable/disable auto-start on login (one click!)
+  • Export/import your entire configuration
+  • See what's currently configured
+
+No need to manually copy files or remember naming conventions!
+
+
+ALL GESTURES SUPPORTED:
+-----------------------
+Buttons (8):
+  • Press
+
+Dials (4 × 4 = 16):
+  • Rotate clockwise
+  • Rotate counter-clockwise
+  • Press (quick tap)
+  • Long press (hold 0.5s+)
+
+Touchscreen Zones (4 × 6 = 24):
+  • Tap
+  • Long press
+  • Swipe up/down/left/right
+
+Screen-Wide (2):
+  • Long swipe left (across entire screen)
+  • Long swipe right (across entire screen)
+
+TOTAL: 50 customizable actions!
+
+
+CUSTOMIZATION:
+--------------
+Add images and labels:
+  button-N.png (or .jpg)    - Button image (120x120)
+  button-N.txt              - Button label text
+  touch-N.png (or .jpg)     - Touchscreen zone image (200x100)
+  touch-N.txt               - Touchscreen zone label text
+
+
+128 EXAMPLE SCRIPTS:
+--------------------
+Located in: ~/streamdeck-actions/examples/
+
+General Actions (50 scripts):
+  • Volume & Media Control (8)
+  • Window Management with xdotool (9)
+  • Screenshots (4)
+  • Flameshot Screenshots (8)
+  • System Actions (5)
+  • Applications (3)
+  • Keyboard Automation (13)
+
+Developer Actions (78 scripts):
+  • Navigation & Arrow Keys (12)
+  • Code Editing (14)
+  • Code Navigation (8)
+  • Search & Replace (4)
+  • Multi-Cursor (2)
+  • IDE Interface (7)
+  • Debugging (9)
+  • Git Commands (7)
+  • NPM Commands (4)
+  • Docker (3)
+  • Python (2)
+  • Build Tools (2)
+  • Terminal Commands (3)
+
+View all examples:
+  cat ~/streamdeck-actions/examples/README.txt
+  cat ~/streamdeck-actions/examples/dev-actions/README.txt
+
+Copy examples to use (or use the UI!):
+  cp examples/volume-up.sh dials/dial-1-cw.sh
+  cp examples/dev-actions/arrow-up.sh dials/dial-2-cw.sh
+
+
+COMPLETE LOGGING:
+-----------------
+Every button press, dial turn, swipe, and action is logged!
+
+View log:
+  tail -f ~/streamdeck-actions/daemon.log
+
+Logs show:
+  • What was pressed/swiped/rotated
+  • Which script was executed
+  • Timestamp of every action
+  • Any errors or warnings
+
+
+FILE STRUCTURE:
+---------------
+~/streamdeck-actions/
+├── streamdeck-daemon.py      # Main daemon
+├── start                      # Start script
+├── configure                  # Launch configuration UI (Electron)
+├── create-action              # Helper to create new actions
+├── setup-autostart.sh         # Enable auto-start on login
+├── remove-autostart.sh        # Disable auto-start
+├── daemon.log                 # Complete action log
+├── buttons/                   # 8 button scripts + images + labels
+│   ├── button-N.sh
+│   ├── button-N.png (optional)
+│   └── button-N.txt (optional)
+├── dials/                     # 4 dials × 4 actions each
+│   ├── dial-N-cw.sh
+│   ├── dial-N-ccw.sh
+│   ├── dial-N-press.sh
+│   └── dial-N-longpress.sh
+├── touchscreen/               # 4 zones × 6 gestures + 2 long swipes
+│   ├── touch-N.sh
+│   ├── touch-N-longpress.sh
+│   ├── touch-N-swipe-up/down/left/right.sh
+│   ├── touch-N.png (optional)
+│   ├── touch-N.txt (optional)
+│   ├── longswipe-left.sh
+│   └── longswipe-right.sh
+└── examples/                  # 42 ready-to-use scripts!
+    └── (volume, media, windows, screenshots, etc.)
+
+
+DOCUMENTATION:
+--------------
+  cat ~/streamdeck-actions/README.md           # Main guide
+  cat ~/streamdeck-actions/QUICK-START.txt     # Quick reference
+  cat ~/streamdeck-actions/ALL-GESTURES.md     # Complete gesture guide
+  cat ~/streamdeck-actions/examples/README.txt # All 42 examples
+
+
+TESTING:
+--------
+Example gesture scripts with notifications are already in place!
+
+Test gestures:
+  • Dial 1 long press → Notification appears
+  • Touch zone 1 swipe up → Notification appears
+  • Long swipe right → Notification appears
+
+Watch the log while testing:
+  tail -f ~/streamdeck-actions/daemon.log
+
+
+NO CONFIG FILES! NO JSON! NO COMPLEX SETUP!
+Just bash scripts, images, and text files!
+
+================================================================================
+                        YOUR STREAM DECK IS READY!
+================================================================================
+
+Start using it:
+  ~/streamdeck-actions/start

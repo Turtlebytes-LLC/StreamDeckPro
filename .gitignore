@@ -1,0 +1,56 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# User-specific configuration
+.ui-config.json
+daemon.log
+
+# Downloaded icons (user downloads separately)
+icons/
+!icons/.gitkeep
+
+# User's custom scripts and images (they should create their own)
+buttons/*.sh
+buttons/*.png
+buttons/*.jpg
+buttons/*.jpeg
+buttons/*.txt
+dials/*.sh
+dials/*.png
+dials/*.jpg
+dials/*.jpeg
+dials/*.txt
+touchscreen/*.sh
+touchscreen/*.png
+touchscreen/*.jpg
+touchscreen/*.jpeg
+touchscreen/*.txt
+
+# Keep directory structure but ignore contents
+!buttons/.gitkeep
+!dials/.gitkeep
+!touchscreen/.gitkeep
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
+
+# User exports
+*.tar.gz
+
+# Node modules
+/configurator-electron/node_modules/

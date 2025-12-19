@@ -1,0 +1,25 @@
+#!/bin/bash
+# Launcher for Stream Deck Electron Configurator
+
+cd "$(dirname "$0")"
+
+# Check if node_modules exists
+if [ ! -d "node_modules" ]; then
+    echo "Dependencies not installed. Running setup..."
+    ./setup.sh
+    if [ $? -ne 0 ]; then
+        echo "Setup failed. Please run './setup.sh' manually."
+        exit 1
+    fi
+fi
+
+echo "Building application..."
+npm run build
+
+if [ $? -ne 0 ]; then
+    echo "Build failed. Please check the errors above."
+    exit 1
+fi
+
+echo "Starting Stream Deck Configurator..."
+npm start -- --no-sandbox

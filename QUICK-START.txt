@@ -1,0 +1,98 @@
+================================================================================
+                    STREAM DECK - SIMPLE SCRIPT SYSTEM
+================================================================================
+
+WHAT IT DOES:
+-------------
+Your Stream Deck is now a simple input device that executes bash scripts!
+Now with CUSTOM IMAGES and LABELS!
+
+- 8 Buttons → Each calls a script file + shows custom image/label
+- 4 Dials → Each has 3 scripts (rotate CW, rotate CCW, press)
+- Touchscreen → 4 tap zones with custom images/labels
+
+
+HOW TO START:
+-------------
+  ~/streamdeck-actions/start
+
+The daemon loads your scripts, images, and labels onto the Stream Deck!
+
+
+CUSTOMIZE YOUR BUTTONS:
+-----------------------
+For each button, add:
+  - button-N.sh       (required - the script to run)
+  - button-N.png      (optional - image to display, 120x120)
+  - button-N.txt      (optional - text label to overlay)
+
+Example:
+  ~/streamdeck-actions/buttons/
+  ├── button-1.sh     # Launch Firefox
+  ├── button-1.png    # Firefox icon
+  └── button-1.txt    # "Firefox"
+
+
+CUSTOMIZE TOUCHSCREEN:
+----------------------
+For each zone (1-4), add:
+  - touch-N.sh        (required - the script to run)
+  - touch-N.png       (optional - image to display, 200x100)
+  - touch-N.txt       (optional - text label to overlay)
+
+Example:
+  ~/streamdeck-actions/touchscreen/
+  ├── touch-1.sh      # Play/pause
+  ├── touch-1.png     # Play icon
+  └── touch-1.txt     # "Play/Pause"
+
+
+FILE STRUCTURE:
+---------------
+  ~/streamdeck-actions/
+    ├── buttons/
+    │   ├── button-1.sh + button-1.png + button-1.txt
+    │   ├── button-2.sh + button-2.txt
+    │   └── ... button-8.sh
+    ├── dials/
+    │   ├── dial-1-cw.sh, dial-1-ccw.sh, dial-1-press.sh
+    │   └── ... (dial-2, dial-3, dial-4)
+    └── touchscreen/
+        ├── touch-1.sh + touch-1.png + touch-1.txt
+        ├── touch-2.sh + touch-2.txt
+        ├── touch-3.sh
+        └── touch-4.sh
+
+
+CREATE NEW ACTION:
+------------------
+  ~/streamdeck-actions/create-action
+
+OR manually:
+  1. nano ~/streamdeck-actions/buttons/button-3.sh
+  2. chmod +x ~/streamdeck-actions/buttons/button-3.sh
+  3. echo "My App" > ~/streamdeck-actions/buttons/button-3.txt
+  4. Restart daemon
+
+
+EXAMPLES INCLUDED:
+------------------
+- Button 1: Firefox (with "Firefox" label)
+- Button 2: Screenshot (with "Screenshot" label)
+- Dial 1: Volume control
+- Touch 1: Play/Pause (with "Play/Pause" label)
+- Touch 2: Next Track (with "Next Track" label)
+
+
+LOGS:
+-----
+  tail -f ~/streamdeck-actions/daemon.log
+
+
+FULL DOCUMENTATION:
+-------------------
+  cat ~/streamdeck-actions/README.md
+
+
+NO CONFIG FILES! JUST SCRIPTS, IMAGES, AND TEXT FILES!
+================================================================================

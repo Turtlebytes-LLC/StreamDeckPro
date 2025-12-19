@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# Start Stream Deck Simple Daemon
+#
+
+cd ~/streamdeck-actions
+./streamdeck-daemon.py

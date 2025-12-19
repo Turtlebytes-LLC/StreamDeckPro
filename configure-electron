@@ -1,0 +1,5 @@
+#!/bin/bash
+# Launch the Electron-based Stream Deck Configurator
+
+cd "$(dirname "$0")/configurator-electron"
+./start.sh

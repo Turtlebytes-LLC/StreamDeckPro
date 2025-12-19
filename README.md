@@ -181,13 +181,76 @@ To customize for your system, edit:
 - `setup-autostart.sh` - Enable auto-start
 - `remove-autostart.sh` - Disable auto-start
 
-### Macro Recording
-The built-in macro recorder captures:
-- All keyboard keys (including numpad)
-- Modifier combinations (Ctrl, Alt, Shift, Super)
-- Media keys (volume, playback)
-- Function keys (F1-F12)
-- Special keys (Print Screen, Pause, Menu)
+### 🎬 Intelligent Macro System - The Game Changer
+
+**Record. Replay. Step Through. Undo. All with a single dial.**
+
+The macro system transforms Dial 1 into a powerful macro recorder that goes beyond simple playback:
+
+#### What Makes It Special
+
+✨ **Full Keyboard Capture**
+- Every keystroke recorded: letters, numbers, symbols, arrows, modifiers
+- Key combinations captured perfectly: Ctrl+C, Shift+Arrow selections, multi-key shortcuts
+- Navigation keys: Home, End, Page Up/Down, arrows - everything works
+
+🎯 **Intelligent Reverse Playback**
+Unlike traditional macro tools that just use Ctrl+Z, our system intelligently reverses each action:
+- Characters → Backspace removes them
+- Arrow keys → Opposite direction (Left becomes Right)
+- Home/End → Swap (Home becomes End)
+- Modifier combos → Smart Ctrl+Z when needed
+
+⚡ **Step-Through Control**
+- **Turn right**: Execute next command in macro
+- **Turn left**: Intelligently undo last command
+- **Press**: Full macro playback
+- **Long press**: Clear macro and start fresh
+- **Auto-reset**: Position resets after 3 seconds of inactivity
+
+🔔 **Real-Time Feedback**
+- Visual notifications show current position (e.g., "Step 5/13")
+- Single updating notification (no spam!)
+- See exactly which key you're at in the sequence
+
+#### How to Use
+
+1. **Record a macro**:
+   - Press Dial 1 → Recording starts
+   - Type your workflow (shortcuts, text, navigation - anything!)
+   - Press Dial 1 again → Recording stops
+
+2. **Replay the macro**:
+   - Press Dial 1 → Full playback
+   - Turn right → Step forward one command at a time
+   - Turn left → Step backward, intelligently undoing each action
+
+3. **Clear and start over**:
+   - Long press Dial 1 → Macro cleared
+
+#### Real-World Example
+
+Record this workflow once, replay it a thousand times:
+```
+Type: "this is my code"
+Shift+Left (4 times) → highlight "code"
+Ctrl+C → copy
+End → jump to end of line
+Ctrl+V → paste
+Enter → new line
+```
+
+Then step through it command-by-command by turning the dial, or undo actions by turning backward. It's like having a time machine for your keyboard!
+
+#### Technical Details
+
+See the complete implementation in `examples/dev/`:
+- `dial-1-press.sh` - Recording & playback engine
+- `dial-1-cw.sh` - Step forward through macro
+- `dial-1-ccw.sh` - Intelligent reverse playback
+- `dial-1-longpress.sh` - Clear macro
+
+Built with xinput for real-time keyboard monitoring and xdotool for precise playback.
 
 ### Icon Selector with Categories & Colors
 Browse 4900+ free MIT-licensed icons from Tabler Icons with smart category filtering:

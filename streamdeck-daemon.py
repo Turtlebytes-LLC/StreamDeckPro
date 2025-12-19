@@ -96,9 +96,14 @@ class StreamDeckDaemon:
         self.dial_longpress_timers = {}
         self.dial_longpress_triggered = {}
 
+        # Track touchscreen press timing for long press detection
+        self.touch_press_times = {}
+        self.touch_longpress_timers = {}
+        self.touch_longpress_triggered = {}
+
         # Track swipe timing for debouncing
         self.last_swipe_time = 0
-        self.swipe_debounce_delay = 0.15  # Wait 150ms between swipe triggers
+        self.swipe_debounce_delay = 0.3  # Wait 300ms between swipe triggers
 
         # Track swipe start position for long swipe detection
         self.swipe_in_progress = False
@@ -325,12 +330,22 @@ class StreamDeckDaemon:
     def trigger_dial_longpress(self, dial, dial_num):
         """Trigger long press for a dial (called by timer)"""
         # Check if dial is still pressed and hasn't already triggered
-        if dial in self.dial_press_times and dial not in self.dial_longpress_triggered:
+        if dial in self.dial_press_times and not self.dial_longpress_triggered.get(dial, False):
             script = DIALS_DIR / f"dial-{dial_num}-longpress.sh"
             press_duration = time.time() - self.dial_press_times[dial]
             logging.info(f"Dial {dial_num} long pressed ({press_duration:.2f}s)")
             self.execute_script(script, f"Dial {dial_num} Long Press")
             self.dial_longpress_triggered[dial] = True
+
+    def trigger_touch_longpress(self, zone_name):
+        """Trigger long press for a touchscreen zone (called by timer)"""
+        # Check if zone is still pressed and hasn't already triggered
+        if zone_name in self.touch_press_times and not self.touch_longpress_triggered.get(zone_name, False):
+            script = TOUCH_DIR / f"{zone_name}-longpress.sh"
+            press_duration = time.time() - self.touch_press_times[zone_name]
+            logging.info(f"Touchscreen zone {zone_name} long pressed ({press_duration:.2f}s)")
+            self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Long Press")
+            self.touch_longpress_triggered[zone_name] = True
 
     def dial_callback(self, deck, dial, event, value):
         """Handle dial rotation and press (including long press)"""
@@ -400,14 +415,35 @@ class StreamDeckDaemon:
             # Check if this is a new swipe or continuation of existing swipe
             time_since_last_event = current_time - self.swipe_last_event_time
             if not self.swipe_in_progress or time_since_last_event > self.swipe_reset_timeout:
-                # New swipe - record start position
+                # New touch/swipe - record start position
                 self.swipe_in_progress = True
                 self.swipe_start_x = value.get('x', 0)
                 self.swipe_start_y = value.get('y', 0)
                 self.swipe_last_execution = 0  # Reset execution tracking
-                logging.info(f"🆕 New swipe started at ({self.swipe_start_x}, {self.swipe_start_y})")
+                logging.info(f"🆕 New touch started at ({self.swipe_start_x}, {self.swipe_start_y})")
+
+                # Start long press timer for this zone
+                x = self.swipe_start_x
+                for zone in self.touch_zones:
+                    if zone['x'] <= x < zone['x'] + zone['width']:
+                        zone_name = zone['name']
+                        # Cancel any existing timer for this zone
+                        if zone_name in self.touch_longpress_timers:
+                            self.touch_longpress_timers[zone_name].cancel()
+
+                        # Track press time and start timer
+                        self.touch_press_times[zone_name] = current_time
+                        self.touch_longpress_triggered[zone_name] = False
+
+                        # Start timer to trigger long press after 0.5 seconds
+                        timer = threading.Timer(0.5, self.trigger_touch_longpress, args=(zone_name,))
+                        timer.daemon = True
+                        timer.start()
+                        self.touch_longpress_timers[zone_name] = timer
+                        logging.info(f"Started longpress timer for {zone_name}")
+                        break
             else:
-                logging.debug(f"📍 Continuing swipe (time since last event: {time_since_last_event:.3f}s)")
+                logging.debug(f"📍 Continuing touch (time since last event: {time_since_last_event:.3f}s)")
 
             self.swipe_last_event_time = current_time
 
@@ -424,19 +460,59 @@ class StreamDeckDaemon:
             x = value.get('x', 0)
             for zone in self.touch_zones:
                 if zone['x'] <= x < zone['x'] + zone['width']:
-                    script = TOUCH_DIR / f"{zone['name']}.sh"
-                    logging.info(f"Touchscreen zone {zone['name']} tapped")
-                    self.execute_script(script, f"{zone['name'].replace('-', ' ').title()} Tap")
+                    zone_name = zone['name']
+
+                    # Cancel longpress timer if it exists
+                    if zone_name in self.touch_longpress_timers:
+                        self.touch_longpress_timers[zone_name].cancel()
+                        del self.touch_longpress_timers[zone_name]
+
+                    # Only trigger tap if longpress wasn't triggered
+                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
+
+                    # Clean up tracking
+                    if zone_name in self.touch_press_times:
+                        del self.touch_press_times[zone_name]
+                    if zone_name in self.touch_longpress_triggered:
+                        del self.touch_longpress_triggered[zone_name]
+
+                    if not longpress_was_triggered:
+                        script = TOUCH_DIR / f"{zone_name}.sh"
+                        logging.info(f"Touchscreen zone {zone_name} tapped (short)")
+                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Tap")
+                    else:
+                        logging.info(f"Touchscreen zone {zone_name} released (long press already triggered)")
                     break
 
         elif event_name == "LONG":
             # Long press - determine zone
+            # This event is from the device, but we use our own timer instead
             x = value.get('x', 0)
             for zone in self.touch_zones:
                 if zone['x'] <= x < zone['x'] + zone['width']:
-                    script = TOUCH_DIR / f"{zone['name']}-longpress.sh"
-                    logging.info(f"Touchscreen zone {zone['name']} long pressed")
-                    self.execute_script(script, f"{zone['name'].replace('-', ' ').title()} Long Press")
+                    zone_name = zone['name']
+
+                    # Cancel timer if it exists
+                    if zone_name in self.touch_longpress_timers:
+                        self.touch_longpress_timers[zone_name].cancel()
+                        del self.touch_longpress_timers[zone_name]
+
+                    # Check if our timer already triggered it
+                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
+
+                    # Clean up tracking
+                    if zone_name in self.touch_press_times:
+                        del self.touch_press_times[zone_name]
+                    if zone_name in self.touch_longpress_triggered:
+                        del self.touch_longpress_triggered[zone_name]
+
+                    if not longpress_was_triggered:
+                        # Timer didn't fire, execute now (fallback)
+                        script = TOUCH_DIR / f"{zone_name}-longpress.sh"
+                        logging.info(f"Touchscreen zone {zone_name} long pressed (device event)")
+                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Long Press")
+                    else:
+                        logging.info(f"Touchscreen zone {zone_name} released (long press already triggered by timer)")
                     break
 
         elif event_name == "SWIPE":
@@ -465,6 +541,22 @@ class StreamDeckDaemon:
             # Each zone is 200 pixels, so > 400 pixels = crossing more than 2 zones
             zones_crossed = abs(dx) / 200.0
             is_long_swipe = zones_crossed > 2.0
+
+            # Cancel any longpress timers for zones being swiped
+            # If movement is significant, it's not a long press
+            if abs(dx) > 30 or abs(dy) > 30:  # Movement threshold
+                for zone in self.touch_zones:
+                    if zone['x'] <= x < zone['x'] + zone['width']:
+                        zone_name = zone['name']
+                        if zone_name in self.touch_longpress_timers:
+                            self.touch_longpress_timers[zone_name].cancel()
+                            del self.touch_longpress_timers[zone_name]
+                            if zone_name in self.touch_press_times:
+                                del self.touch_press_times[zone_name]
+                            if zone_name in self.touch_longpress_triggered:
+                                del self.touch_longpress_triggered[zone_name]
+                            logging.debug(f"Cancelled longpress timer for {zone_name} due to swipe movement")
+                        break
 
             logging.info(f"Swipe distance: dx={dx}, dy={dy}, zones_crossed={zones_crossed:.1f}, total from start=({self.swipe_start_x}, {self.swipe_start_y}) to ({x_end}, {y_end})")
 

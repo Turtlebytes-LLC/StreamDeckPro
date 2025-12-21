@@ -16,6 +16,9 @@
 - **Complete Logging** - Track every action and debug easily
 - **Zero Configuration** - No JSON, no complex setup - just bash scripts!
 
+![Stream Deck Plus in Action](images/working-streamdeck.jpg)
+*Your Stream Deck Plus with fully customized buttons, dials, and touchscreen zones*
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -49,6 +52,18 @@ The GUI lets you:
 - See what's currently configured
 - Enable/disable auto-start on login with one click
 - Export/import your entire configuration
+
+#### Configure Your Buttons
+![Button Configuration](images/configure-buttons.png)
+*Easily assign scripts, images, and labels to your 8 LCD buttons*
+
+#### Configure Your Dials
+![Dial Configuration](images/configure-dials.png)
+*Set up clockwise, counter-clockwise, press, and long-press actions for each dial*
+
+#### Configure Your Touchscreen
+![Touchscreen Configuration](images/configure-touch.png)
+*Customize tap, long press, and swipe gestures for all 4 touchscreen zones*
 
 ## 📋 Supported Gestures
 
@@ -135,6 +150,9 @@ streamdeck-actions/
 3. Select a script
 4. Optionally add an image and label
 5. Done! Changes take effect immediately
+
+![Button Scripts Example](images/button-scripts.png)
+*Browse through example scripts or create your own custom actions*
 
 **Manual Method:**
 1. Create a bash script in the appropriate directory
@@ -289,11 +307,52 @@ The configuration UI remembers its size and position between sessions.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. Whether it's:
-- New example scripts
-- Bug fixes
-- Feature improvements
-- Documentation updates
+Contributions are warmly welcomed! This project thrives on community input and I'd love your help making it better. Here are some areas where contributions would be especially valuable:
+
+### 🎯 High-Priority Contributions
+
+**📜 New Example Scripts**
+- Share your favorite automation scripts
+- Add scripts for specific applications or workflows
+- Expand the developer tools collection
+- Create scripts for creative workflows (audio, video, graphics)
+
+**🎨 Better Icon Usage**
+- Improve icon selection and organization
+- Create themed icon sets
+- Better default icons for common actions
+- Icon recommendations for specific use cases
+
+**🔧 System Integration**
+- Improve the auto-start mechanism
+- Better desktop environment integration
+- More robust daemon management
+- System tray integration
+
+**🐧 Multi-Distro Support**
+- **Arch Linux support** - Package for AUR, test compatibility
+- **Fedora/RHEL** - Adapt scripts for RPM-based systems
+- **Other distros** - Ensure compatibility across the Linux ecosystem
+- Testing and validation on different distributions
+
+### 💡 Other Welcome Contributions
+
+- Bug fixes and stability improvements
+- Performance optimizations
+- Documentation updates and clarifications
+- UI/UX improvements for the configuration tool
+- Feature suggestions and enhancements
+
+### 📝 How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Test your changes (especially if adding distro-specific code)
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+**Note:** This project currently works well on Ubuntu/Linux but hasn't been extensively tested on other distributions. If you use Arch, Fedora, or another distro and can help test and adapt the scripts, your contribution would be invaluable!
 
 ## 💖 Support This Project
 

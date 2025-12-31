@@ -18,9 +18,44 @@ from io import BytesIO
 from StreamDeck.DeviceManager import DeviceManager
 from PIL import Image, ImageDraw, ImageFont
 
+try:
+    import cairosvg
+    SVG_SUPPORT = True
+except ImportError:
+    cairosvg = None
+    SVG_SUPPORT = False
+
+def load_svg_image(svg_path, target_width, target_height, icon_color="#FFFFFF", bg_color="#000000"):
+    if not SVG_SUPPORT or cairosvg is None:
+        return None
+    
+    try:
+        with open(svg_path, 'r') as f:
+            svg_data = f.read()
+        
+        svg_data = svg_data.replace('stroke="currentColor"', f'stroke="{icon_color}"')
+        svg_data = svg_data.replace('fill="currentColor"', f'fill="{icon_color}"')
+        
+        png_data = cairosvg.svg2png(
+            bytestring=svg_data.encode('utf-8'),
+            output_width=target_width * 2,
+            output_height=target_height * 2,
+            background_color=bg_color
+        )
+        
+        if png_data is None:
+            return None
+        
+        img = Image.open(BytesIO(png_data))
+        img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        return img.convert('RGB')
+    except Exception as e:
+        logging.error(f"Error loading SVG {svg_path}: {e}")
+        return None
+
+
 def resize_with_aspect_ratio(img, target_width, target_height):
     """Resize image maintaining aspect ratio with padding"""
-    # Get original dimensions
     orig_width, orig_height = img.size
 
     # Calculate aspect ratios
@@ -105,18 +140,23 @@ class StreamDeckDaemon:
         self.last_swipe_time = 0
         self.swipe_debounce_delay = 0.3  # Wait 300ms between swipe triggers
 
-        # Track swipe start position for long swipe detection
+        # Track swipe for proper gesture detection
         self.swipe_in_progress = False
         self.swipe_start_x = 0
         self.swipe_start_y = 0
+        self.swipe_end_x = 0
+        self.swipe_end_y = 0
+        self.swipe_min_x = 0
+        self.swipe_max_x = 0
         self.swipe_last_event_time = 0
-        self.swipe_reset_timeout = 1.5  # Reset swipe tracking after 1.5s of no events
-        self.swipe_last_execution = 0  # Track when we last executed a swipe script
+        self.swipe_reset_timeout = 1.0
+        self.swipe_min_distance = 30
+        self.swipe_completion_timer = None  # Timer for detecting swipe end (no SHORT event from device)
 
         # Track file modification times for hot-reloading
         self.file_mtimes = {}
         self.last_reload_check = 0
-        self.reload_check_interval = 2.0  # Check for changes every 2 seconds
+        self.reload_check_interval = 0.1  # Check for changes every 0.1 seconds
 
     def connect_device(self):
         """Connect to Stream Deck"""
@@ -152,7 +192,12 @@ class StreamDeckDaemon:
 
     def load_image_for_button(self, button_num):
         """Load custom image for a button, or create default"""
-        # Look for image files (png, jpg, jpeg)
+        svg_path = BUTTONS_DIR / f"button-{button_num}.svg"
+        if svg_path.exists():
+            img = load_svg_image(svg_path, 120, 120)
+            if img:
+                return img
+        
         for ext in ['.png', '.jpg', '.jpeg']:
             img_path = BUTTONS_DIR / f"button-{button_num}{ext}"
             if img_path.exists():
@@ -405,208 +450,184 @@ class StreamDeckDaemon:
     def touchscreen_callback(self, deck, event_type, value):
         """Handle touchscreen gestures: tap, swipe, long swipe"""
         event_name = event_type.name if hasattr(event_type, 'name') else str(event_type)
+        current_time = time.time()
 
         logging.info(f"Touchscreen event: {event_name}, value: {value}")
 
-        # Handle different event types
         if event_name == "DRAG":
-            current_time = time.time()
-
-            # Check if this is a new swipe or continuation of existing swipe
-            time_since_last_event = current_time - self.swipe_last_event_time
-            if not self.swipe_in_progress or time_since_last_event > self.swipe_reset_timeout:
-                # New touch/swipe - record start position
+            time_since_last = current_time - self.swipe_last_event_time
+            
+            if not self.swipe_in_progress or time_since_last > self.swipe_reset_timeout:
                 self.swipe_in_progress = True
                 self.swipe_start_x = value.get('x', 0)
                 self.swipe_start_y = value.get('y', 0)
-                self.swipe_last_execution = 0  # Reset execution tracking
-                logging.info(f"🆕 New touch started at ({self.swipe_start_x}, {self.swipe_start_y})")
+                self.swipe_min_x = self.swipe_start_x
+                self.swipe_max_x = self.swipe_start_x
 
-                # Start long press timer for this zone
                 x = self.swipe_start_x
                 for zone in self.touch_zones:
                     if zone['x'] <= x < zone['x'] + zone['width']:
                         zone_name = zone['name']
-                        # Cancel any existing timer for this zone
                         if zone_name in self.touch_longpress_timers:
                             self.touch_longpress_timers[zone_name].cancel()
-
-                        # Track press time and start timer
                         self.touch_press_times[zone_name] = current_time
                         self.touch_longpress_triggered[zone_name] = False
-
-                        # Start timer to trigger long press after 0.5 seconds
                         timer = threading.Timer(0.5, self.trigger_touch_longpress, args=(zone_name,))
                         timer.daemon = True
                         timer.start()
                         self.touch_longpress_timers[zone_name] = timer
-                        logging.info(f"Started longpress timer for {zone_name}")
                         break
-            else:
-                logging.debug(f"📍 Continuing touch (time since last event: {time_since_last_event:.3f}s)")
 
+            current_x = value.get('x', 0)
+            current_x_out = value.get('x_out', current_x)
+            self.swipe_end_x = current_x_out
+            self.swipe_end_y = value.get('y_out', value.get('y', 0))
             self.swipe_last_event_time = current_time
 
-            # Debounce to avoid multiple script executions during one continuous swipe
-            time_since_execution = current_time - self.swipe_last_execution
-            if self.swipe_last_execution > 0 and time_since_execution < self.swipe_debounce_delay:
-                logging.debug(f"⏸️  Skipping execution - too soon after last script ({time_since_execution:.3f}s)")
-                return
-
-            event_name = "SWIPE"
-
-        if event_name == "SHORT":
-            # Short tap - determine zone
-            x = value.get('x', 0)
-            for zone in self.touch_zones:
-                if zone['x'] <= x < zone['x'] + zone['width']:
-                    zone_name = zone['name']
-
-                    # Cancel longpress timer if it exists
-                    if zone_name in self.touch_longpress_timers:
-                        self.touch_longpress_timers[zone_name].cancel()
-                        del self.touch_longpress_timers[zone_name]
-
-                    # Only trigger tap if longpress wasn't triggered
-                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
-
-                    # Clean up tracking
-                    if zone_name in self.touch_press_times:
-                        del self.touch_press_times[zone_name]
-                    if zone_name in self.touch_longpress_triggered:
-                        del self.touch_longpress_triggered[zone_name]
-
-                    if not longpress_was_triggered:
-                        script = TOUCH_DIR / f"{zone_name}.sh"
-                        logging.info(f"Touchscreen zone {zone_name} tapped (short)")
-                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Tap")
-                    else:
-                        logging.info(f"Touchscreen zone {zone_name} released (long press already triggered)")
-                    break
-
-        elif event_name == "LONG":
-            # Long press - determine zone
-            # This event is from the device, but we use our own timer instead
-            x = value.get('x', 0)
-            for zone in self.touch_zones:
-                if zone['x'] <= x < zone['x'] + zone['width']:
-                    zone_name = zone['name']
-
-                    # Cancel timer if it exists
-                    if zone_name in self.touch_longpress_timers:
-                        self.touch_longpress_timers[zone_name].cancel()
-                        del self.touch_longpress_timers[zone_name]
-
-                    # Check if our timer already triggered it
-                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
-
-                    # Clean up tracking
-                    if zone_name in self.touch_press_times:
-                        del self.touch_press_times[zone_name]
-                    if zone_name in self.touch_longpress_triggered:
-                        del self.touch_longpress_triggered[zone_name]
-
-                    if not longpress_was_triggered:
-                        # Timer didn't fire, execute now (fallback)
-                        script = TOUCH_DIR / f"{zone_name}-longpress.sh"
-                        logging.info(f"Touchscreen zone {zone_name} long pressed (device event)")
-                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Long Press")
-                    else:
-                        logging.info(f"Touchscreen zone {zone_name} released (long press already triggered by timer)")
-                    break
-
-        elif event_name == "SWIPE":
-            # Swipe gesture - use tracked start position for full gesture distance
-            if self.swipe_in_progress:
-                # Calculate from original start position to current end position
-                x_end = value.get('x_out', value.get('x', 0))
-                y_end = value.get('y_out', value.get('y', 0))
-
-                dx = x_end - self.swipe_start_x
-                dy = y_end - self.swipe_start_y
-
-                # Use start position for zone detection
-                x = self.swipe_start_x
-                y = self.swipe_start_y
-            else:
-                # Fallback if no tracking (shouldn't happen)
-                x = value.get('x', 0)
-                y = value.get('y', 0)
-                x_end = value.get('x_out', x)
-                y_end = value.get('y_out', y)
-                dx = x_end - x
-                dy = y_end - y
-
-            # Determine if it's a long swipe (across more than 2 zones)
-            # Each zone is 200 pixels, so > 400 pixels = crossing more than 2 zones
-            zones_crossed = abs(dx) / 200.0
-            is_long_swipe = zones_crossed > 2.0
-
-            # Cancel any longpress timers for zones being swiped
-            # If movement is significant, it's not a long press
-            if abs(dx) > 30 or abs(dy) > 30:  # Movement threshold
+            self.swipe_min_x = min(self.swipe_min_x, current_x, current_x_out)
+            self.swipe_max_x = max(self.swipe_max_x, current_x, current_x_out)
+            
+            dx = self.swipe_end_x - self.swipe_start_x
+            dy = self.swipe_end_y - self.swipe_start_y
+            
+            if abs(dx) > self.swipe_min_distance or abs(dy) > self.swipe_min_distance:
                 for zone in self.touch_zones:
+                    x = self.swipe_start_x
                     if zone['x'] <= x < zone['x'] + zone['width']:
                         zone_name = zone['name']
                         if zone_name in self.touch_longpress_timers:
                             self.touch_longpress_timers[zone_name].cancel()
                             del self.touch_longpress_timers[zone_name]
-                            if zone_name in self.touch_press_times:
-                                del self.touch_press_times[zone_name]
-                            if zone_name in self.touch_longpress_triggered:
-                                del self.touch_longpress_triggered[zone_name]
-                            logging.debug(f"Cancelled longpress timer for {zone_name} due to swipe movement")
+                        if zone_name in self.touch_press_times:
+                            del self.touch_press_times[zone_name]
+                        if zone_name in self.touch_longpress_triggered:
+                            del self.touch_longpress_triggered[zone_name]
                         break
 
-            logging.info(f"Swipe distance: dx={dx}, dy={dy}, zones_crossed={zones_crossed:.1f}, total from start=({self.swipe_start_x}, {self.swipe_start_y}) to ({x_end}, {y_end})")
+            if self.swipe_completion_timer:
+                self.swipe_completion_timer.cancel()
+            self.swipe_completion_timer = threading.Timer(0.2, self._complete_swipe)
+            self.swipe_completion_timer.daemon = True
+            self.swipe_completion_timer.start()
+            return
 
-            if is_long_swipe:
-                # Long swipe across screen (more than 2 zones!)
-                if dx > 0:
-                    script = TOUCH_DIR / "longswipe-right.sh"
-                    logging.info(f"🔥 LONG SWIPE RIGHT! Crossed {zones_crossed:.1f} zones")
-                    self.execute_script(script, f"Long Swipe Right ({zones_crossed:.1f} zones)")
-                else:
-                    script = TOUCH_DIR / "longswipe-left.sh"
-                    logging.info(f"🔥 LONG SWIPE LEFT! Crossed {zones_crossed:.1f} zones")
-                    self.execute_script(script, f"Long Swipe Left ({zones_crossed:.1f} zones)")
+        if event_name == "SHORT":
+            x = value.get('x', 0)
 
-                # Mark execution time and reset swipe tracking
-                self.swipe_last_execution = time.time()
+            if self.swipe_completion_timer:
+                self.swipe_completion_timer.cancel()
+                self.swipe_completion_timer = None
+            
+            if self.swipe_in_progress:
+                dx = self.swipe_end_x - self.swipe_start_x
+                dy = self.swipe_end_y - self.swipe_start_y
+                zones_crossed = abs(dx) / 200.0
+                
+                logging.info(f"Touch released: dx={dx}, dy={dy}, zones={zones_crossed:.1f}")
+                
+                if abs(dx) > self.swipe_min_distance or abs(dy) > self.swipe_min_distance:
+                    self._execute_swipe(dx, dy, zones_crossed)
+                    self.swipe_in_progress = False
+                    return
+                
                 self.swipe_in_progress = False
-            else:
-                # Regular swipe - determine zone and direction
-                for zone in self.touch_zones:
-                    if zone['x'] <= x < zone['x'] + zone['width']:
-                        zone_title = zone['name'].replace('-', ' ').title()
-                        # Determine primary direction
-                        if abs(dx) > abs(dy):
-                            # Horizontal swipe
-                            if dx > 0:
-                                script = TOUCH_DIR / f"{zone['name']}-swipe-right.sh"
-                                logging.info(f"Swipe right in {zone['name']}")
-                                self.execute_script(script, f"{zone_title} Swipe Right")
-                            else:
-                                script = TOUCH_DIR / f"{zone['name']}-swipe-left.sh"
-                                logging.info(f"Swipe left in {zone['name']}")
-                                self.execute_script(script, f"{zone_title} Swipe Left")
+            
+            for zone in self.touch_zones:
+                if zone['x'] <= x < zone['x'] + zone['width']:
+                    zone_name = zone['name']
+                    if zone_name in self.touch_longpress_timers:
+                        self.touch_longpress_timers[zone_name].cancel()
+                        del self.touch_longpress_timers[zone_name]
+                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
+                    if zone_name in self.touch_press_times:
+                        del self.touch_press_times[zone_name]
+                    if zone_name in self.touch_longpress_triggered:
+                        del self.touch_longpress_triggered[zone_name]
+                    if not longpress_was_triggered:
+                        script = TOUCH_DIR / f"{zone_name}.sh"
+                        logging.info(f"Tap on {zone_name}")
+                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Tap")
+                    break
+
+        elif event_name == "LONG":
+            x = value.get('x', 0)
+
+            if self.swipe_completion_timer:
+                self.swipe_completion_timer.cancel()
+                self.swipe_completion_timer = None
+
+            self.swipe_in_progress = False
+            
+            for zone in self.touch_zones:
+                if zone['x'] <= x < zone['x'] + zone['width']:
+                    zone_name = zone['name']
+                    if zone_name in self.touch_longpress_timers:
+                        self.touch_longpress_timers[zone_name].cancel()
+                        del self.touch_longpress_timers[zone_name]
+                    longpress_was_triggered = self.touch_longpress_triggered.get(zone_name, False)
+                    if zone_name in self.touch_press_times:
+                        del self.touch_press_times[zone_name]
+                    if zone_name in self.touch_longpress_triggered:
+                        del self.touch_longpress_triggered[zone_name]
+                    if not longpress_was_triggered:
+                        script = TOUCH_DIR / f"{zone_name}-longpress.sh"
+                        logging.info(f"Long press on {zone_name}")
+                        self.execute_script(script, f"{zone_name.replace('-', ' ').title()} Long Press")
+                    break
+
+    def _complete_swipe(self):
+        if not self.swipe_in_progress:
+            return
+
+        dx = self.swipe_end_x - self.swipe_start_x
+        dy = self.swipe_end_y - self.swipe_start_y
+        total_span = self.swipe_max_x - self.swipe_min_x
+        zones_crossed = total_span / 200.0
+
+        if total_span > self.swipe_min_distance or abs(dy) > self.swipe_min_distance:
+            self._execute_swipe(dx, dy, zones_crossed)
+
+        self.swipe_in_progress = False
+        self.swipe_completion_timer = None
+
+    def _execute_swipe(self, dx, dy, zones_crossed):
+        start_x = self.swipe_start_x
+        
+        is_edge_swipe_right = start_x < 80 and dx > 50
+        is_edge_swipe_left = start_x > 720 and dx < -50
+        
+        if is_edge_swipe_right:
+            script = TOUCH_DIR / "longswipe-right.sh"
+            logging.info("Long swipe right (from left edge)")
+            self.execute_script(script, "Long Swipe Right")
+        elif is_edge_swipe_left:
+            script = TOUCH_DIR / "longswipe-left.sh"
+            logging.info("Long swipe left (from right edge)")
+            self.execute_script(script, "Long Swipe Left")
+        else:
+            x = self.swipe_start_x
+            for zone in self.touch_zones:
+                if zone['x'] <= x < zone['x'] + zone['width']:
+                    zone_title = zone['name'].replace('-', ' ').title()
+                    if abs(dx) > abs(dy):
+                        if dx > 0:
+                            script = TOUCH_DIR / f"{zone['name']}-swipe-right.sh"
+                            logging.info(f"Swipe right in {zone['name']}")
+                            self.execute_script(script, f"{zone_title} Swipe Right")
                         else:
-                            # Vertical swipe
-                            if dy > 0:
-                                script = TOUCH_DIR / f"{zone['name']}-swipe-down.sh"
-                                logging.info(f"Swipe down in {zone['name']}")
-                                self.execute_script(script, f"{zone_title} Swipe Down")
-                            else:
-                                script = TOUCH_DIR / f"{zone['name']}-swipe-up.sh"
-                                logging.info(f"Swipe up in {zone['name']}")
-                                self.execute_script(script, f"{zone_title} Swipe Up")
-
-                        # Mark when we executed
-                        self.swipe_last_execution = time.time()
-                        break
-
-                # Don't reset swipe_in_progress for regular swipes - let it accumulate
-                # It will auto-reset after timeout if user stops swiping
+                            script = TOUCH_DIR / f"{zone['name']}-swipe-left.sh"
+                            logging.info(f"Swipe left in {zone['name']}")
+                            self.execute_script(script, f"{zone_title} Swipe Left")
+                    else:
+                        if dy > 0:
+                            script = TOUCH_DIR / f"{zone['name']}-swipe-down.sh"
+                            logging.info(f"Swipe down in {zone['name']}")
+                            self.execute_script(script, f"{zone_title} Swipe Down")
+                        else:
+                            script = TOUCH_DIR / f"{zone['name']}-swipe-up.sh"
+                            logging.info(f"Swipe up in {zone['name']}")
+                            self.execute_script(script, f"{zone_title} Swipe Up")
+                    break
 
     def execute_script(self, script_path, action_description=None):
         """Execute a script file if it exists, or create it with template"""
@@ -624,21 +645,6 @@ class StreamDeckDaemon:
             logging.info(f"Made executable: {script_path}")
 
         try:
-            logging.info(f"EXECUTING: {script_path}")
-
-            # Log first 10 lines of the script
-            try:
-                with open(script_path, 'r') as f:
-                    lines = f.readlines()[:10]
-                    if lines:
-                        logging.info(f"Script content (first 10 lines):")
-                        for i, line in enumerate(lines, 1):
-                            logging.info(f"  {i}: {line.rstrip()}")
-                        if len(lines) == 10:
-                            logging.info(f"  ... (script continues)")
-            except Exception as read_err:
-                logging.warning(f"Could not read script content: {read_err}")
-
             subprocess.Popen(
                 [str(script_path)],
                 stdout=subprocess.PIPE,
@@ -669,13 +675,18 @@ notify-send "Stream Deck" "{action_description}" -t 2000
 
     def load_image_for_touch_zone(self, zone_name):
         """Load image for touchscreen zone"""
+        svg_path = TOUCH_DIR / f"{zone_name}.svg"
+        if svg_path.exists():
+            img = load_svg_image(svg_path, 200, 100)
+            if img:
+                return img
+        
         for ext in ['.png', '.jpg', '.jpeg']:
             img_path = TOUCH_DIR / f"{zone_name}{ext}"
             if img_path.exists():
                 try:
                     img = Image.open(img_path)
                     img = img.convert('RGB')
-                    # Each zone is 200x100
                     img = resize_with_aspect_ratio(img, 200, 100)
                     return img
                 except Exception as e:
@@ -734,13 +745,13 @@ notify-send "Stream Deck" "{action_description}" -t 2000
 
         # Button images, labels, and text positions
         for i in range(1, 9):
-            for ext in ['.png', '.jpg', '.jpeg', '.txt']:
+            for ext in ['.png', '.jpg', '.jpeg', '.svg', '.txt']:
                 files_to_check.append(BUTTONS_DIR / f"button-{i}{ext}")
             files_to_check.append(BUTTONS_DIR / f"button-{i}-position.txt")
 
         # Touchscreen images, labels, and text positions
         for i in range(1, 5):
-            for ext in ['.png', '.jpg', '.jpeg', '.txt']:
+            for ext in ['.png', '.jpg', '.jpeg', '.svg', '.txt']:
                 files_to_check.append(TOUCH_DIR / f"touch-{i}{ext}")
             files_to_check.append(TOUCH_DIR / f"touch-{i}-position.txt")
 
@@ -903,6 +914,10 @@ notify-send "Stream Deck" "{action_description}" -t 2000
         logging.info("  Touch tap: touch-N.sh, touch-N-longpress.sh")
         logging.info("  Touch swipe: touch-N-swipe-up/down/left/right.sh")
         logging.info("  Long swipe: longswipe-left.sh, longswipe-right.sh")
+        logging.info("")
+        logging.info("Long swipe gesture:")
+        logging.info("  - Swipe RIGHT: Start from LEFT edge, swipe right quickly")
+        logging.info("  - Swipe LEFT: Start from RIGHT edge, swipe left quickly")
         logging.info("")
         logging.info("Customize with images and labels:")
         logging.info("  - Add button-N.png (image for button N)")

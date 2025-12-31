@@ -7,114 +7,156 @@
   <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
-  <!-- Header -->
-  <header class="bg-deck-primary px-6 py-4 flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-white flex items-center gap-2">
-      🎛️ Stream Deck Configuration
-    </h1>
-    <div class="flex gap-3">
-      <button id="export-btn" class="btn-primary text-sm">📤 Export</button>
-      <button id="import-btn" class="btn-success text-sm">📥 Import</button>
-      <button id="autostart-btn" class="btn-purple text-sm">⚙️ Auto-start</button>
+  <header class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+        <span class="text-2xl">🎛️</span>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-white">Stream Deck Plus</h1>
+        <p class="text-blue-100 text-sm">Configuration Manager</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="theme-toggle" class="btn-icon text-white hover:bg-white/10" title="Toggle Dark Mode">
+        <span id="theme-icon" class="text-xl">🌙</span>
+      </button>
+      <div class="w-px h-8 bg-white/20"></div>
+      <button id="export-btn" class="btn bg-white/10 hover:bg-white/20 text-white text-sm backdrop-blur">
+        <span>📤</span> Export
+      </button>
+      <button id="import-btn" class="btn bg-white/10 hover:bg-white/20 text-white text-sm backdrop-blur">
+        <span>📥</span> Import
+      </button>
+      <button id="autostart-btn" class="btn bg-white/10 hover:bg-white/20 text-white text-sm backdrop-blur">
+        <span>⚙️</span> Auto-start
+      </button>
     </div>
   </header>
 
-  <!-- Tabs -->
-  <div class="flex bg-white border-b-2 border-gray-200">
-    <button class="tab tab-active" data-tab="buttons">🔘 Buttons (8)</button>
-    <button class="tab tab-inactive" data-tab="dials">🎚 Dials (4×4)</button>
-    <button class="tab tab-inactive" data-tab="touchscreen">📱 Touchscreen</button>
+  <div class="flex bg-white dark:bg-deck-card-dark border-b border-deck-border dark:border-deck-border-dark transition-colors duration-300">
+    <button class="tab tab-active" data-tab="buttons">
+      <span class="mr-2">🔘</span> Buttons
+      <span class="ml-2 badge badge-info">8</span>
+    </button>
+    <button class="tab tab-inactive" data-tab="dials">
+      <span class="mr-2">🎚</span> Dials
+      <span class="ml-2 badge badge-info">4×4</span>
+    </button>
+    <button class="tab tab-inactive" data-tab="touchscreen">
+      <span class="mr-2">📱</span> Touchscreen
+      <span class="ml-2 badge badge-info">4+2</span>
+    </button>
   </div>
 
-  <!-- Main Content -->
-  <main class="flex-1 overflow-hidden">
-    <!-- Buttons Tab -->
+  <main class="flex-1 overflow-hidden bg-deck-bg dark:bg-deck-bg-dark transition-colors duration-300">
     <div id="buttons-tab" class="tab-content h-full flex flex-col">
-      <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <p class="text-gray-700 mb-4 text-lg">Configure your 8 LCD buttons - assign scripts, images, and labels</p>
-        <div class="card shadow-md">
-          <div class="flex items-center gap-4">
-            <span class="font-semibold text-gray-800">⚙️ Set All Button Font Sizes:</span>
-            <input type="number" id="button-fontsize-all" class="input w-20" value="24" min="10" max="60">
-            <button id="apply-button-fontsize" class="btn-primary text-sm">Apply to All Buttons</button>
+      <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-deck-border dark:border-deck-border-dark">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">LCD Buttons</h2>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">Configure your 8 programmable LCD buttons</p>
+          </div>
+          <div class="flex items-center gap-3 bg-white dark:bg-deck-card-dark rounded-xl px-4 py-2 shadow-sm border border-deck-border dark:border-deck-border-dark">
+            <span class="font-medium text-gray-700 dark:text-gray-300 text-sm">Global Font Size:</span>
+            <input type="number" id="button-fontsize-all" class="input w-16 text-center" value="24" min="10" max="60">
+            <button id="apply-button-fontsize" class="btn-primary text-sm">Apply All</button>
           </div>
         </div>
       </div>
-      <div id="buttons-container" class="flex-1 overflow-auto px-4 py-4 scrollable"></div>
+      <div id="buttons-container" class="flex-1 overflow-auto px-6 py-4 scrollable space-y-4"></div>
     </div>
 
-    <!-- Dials Tab -->
     <div id="dials-tab" class="tab-content hidden h-full flex flex-col">
-      <div class="p-4 bg-gradient-to-r from-amber-50 to-orange-50">
-        <p class="text-gray-700 mb-4 text-lg">Configure 4 dials - each dial has 4 actions</p>
-      </div>
-      <div id="dials-container" class="flex-1 overflow-auto px-4 py-4 scrollable"></div>
-    </div>
-
-    <!-- Touchscreen Tab -->
-    <div id="touchscreen-tab" class="tab-content hidden h-full flex flex-col">
-      <div class="p-4 bg-gradient-to-r from-purple-50 to-pink-50">
-        <p class="text-gray-700 mb-4 text-lg">Configure 4 touchscreen zones - each zone has 6 gestures</p>
-        <div class="card shadow-md">
-          <div class="flex items-center gap-4">
-            <span class="font-semibold text-gray-800">⚙️ Set All Touchscreen Font Sizes:</span>
-            <input type="number" id="touch-fontsize-all" class="input w-20" value="28" min="10" max="60">
-            <button id="apply-touch-fontsize" class="btn-primary text-sm">Apply to All Zones</button>
+      <div class="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-b border-deck-border dark:border-deck-border-dark">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">Rotary Dials</h2>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">Each dial has 4 actions: clockwise, counter-clockwise, press, and long press</p>
           </div>
         </div>
       </div>
-      <div id="touchscreen-container" class="flex-1 overflow-auto px-4 py-4 scrollable"></div>
+      <div id="dials-container" class="flex-1 overflow-auto px-6 py-4 scrollable space-y-4"></div>
+    </div>
+
+    <div id="touchscreen-tab" class="tab-content hidden h-full flex flex-col">
+      <div class="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-b border-deck-border dark:border-deck-border-dark">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">Touchscreen Zones</h2>
+            <p class="text-gray-600 dark:text-gray-400 text-sm">4 zones with 6 gestures each, plus 2 long swipe actions</p>
+          </div>
+          <div class="flex items-center gap-3 bg-white dark:bg-deck-card-dark rounded-xl px-4 py-2 shadow-sm border border-deck-border dark:border-deck-border-dark">
+            <span class="font-medium text-gray-700 dark:text-gray-300 text-sm">Global Font Size:</span>
+            <input type="number" id="touch-fontsize-all" class="input w-16 text-center" value="28" min="10" max="60">
+            <button id="apply-touch-fontsize" class="btn-primary text-sm">Apply All</button>
+          </div>
+        </div>
+      </div>
+      <div id="touchscreen-container" class="flex-1 overflow-auto px-6 py-4 scrollable space-y-4"></div>
     </div>
   </main>
 
-  <!-- Status Bar -->
-  <div id="status-bar" class="status-bar">
-    <span id="status-text">Ready</span>
+  <div id="status-bar" class="status-bar justify-between">
+    <div class="flex items-center gap-2">
+      <span id="status-indicator" class="config-indicator config-indicator-active"></span>
+      <span id="status-text">Ready</span>
+    </div>
+    <div class="flex items-center gap-4 text-gray-500 dark:text-gray-400 text-xs">
+      <span>Ctrl+1/2/3: Switch tabs</span>
+      <span>Ctrl+E: Export</span>
+      <span>Ctrl+I: Import</span>
+      <span>Esc: Close</span>
+    </div>
   </div>
 
-  <!-- Icon Selector Modal (Hidden by default) -->
-  <div id="icon-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-2xl w-4/5 h-4/5 flex flex-col">
-      <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg px-6 py-4 rounded-t-lg flex items-center justify-between">
-        <span>🎨 Select Icon</span>
-        <button id="close-icon-modal" class="text-white text-3xl hover:text-gray-200 leading-none">&times;</button>
+  <div id="icon-modal" class="modal-backdrop hidden">
+    <div class="modal-content w-4/5 max-w-5xl h-4/5 flex flex-col">
+      <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🎨</span>
+          <span>Icon Library</span>
+        </div>
+        <button id="close-icon-modal" class="btn-icon text-white hover:bg-white/20 text-2xl">&times;</button>
       </div>
       <div class="p-6 flex-1 flex flex-col overflow-hidden">
-        <div class="flex gap-4 mb-4">
-          <div>
+        <div class="flex gap-4 mb-6">
+          <div class="flex-1">
             <label class="label">Category</label>
-            <select id="icon-category" class="input">
-              <option value="utils">Utils</option>
-              <option value="apps">Apps</option>
-              <option value="media">Media</option>
-              <option value="dev">Dev</option>
-              <option value="system">System</option>
-              <option value="creative">Creative</option>
-              <option value="brand">Brand</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label class="label">Color</label>
-            <select id="icon-color" class="input">
-              <option value="blue">Blue</option>
-              <option value="red">Red</option>
-              <option value="green">Green</option>
-              <option value="orange">Orange</option>
-              <option value="purple">Purple</option>
-              <option value="pink">Pink</option>
-              <option value="teal">Teal</option>
+            <select id="icon-category" class="input w-full">
+              <option value="utils">🔧 Utils</option>
+              <option value="apps">📱 Apps</option>
+              <option value="media">🎵 Media</option>
+              <option value="dev">💻 Dev</option>
+              <option value="system">⚙️ System</option>
+              <option value="creative">🎨 Creative</option>
+              <option value="brand">🏷️ Brand</option>
+              <option value="other">📦 Other</option>
             </select>
           </div>
           <div class="flex-1">
+            <label class="label">Color</label>
+            <select id="icon-color" class="input w-full">
+              <option value="blue">🔵 Blue</option>
+              <option value="red">🔴 Red</option>
+              <option value="green">🟢 Green</option>
+              <option value="orange">🟠 Orange</option>
+              <option value="purple">🟣 Purple</option>
+              <option value="pink">💗 Pink</option>
+              <option value="teal">🩵 Teal</option>
+            </select>
+          </div>
+          <div class="flex-[2]">
             <label class="label">Search</label>
-            <input type="text" id="icon-search" class="input w-full" placeholder="Search icons...">
+            <input type="text" id="icon-search" class="input w-full" placeholder="Type to search icons...">
           </div>
         </div>
-        <div id="icon-grid" class="icon-grid flex-1 overflow-y-auto scrollable"></div>
+        <div id="icon-grid" class="icon-grid flex-1 overflow-y-auto scrollable p-1"></div>
       </div>
     </div>
   </div>
+
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"></div>
 
   <script type="module" src="/src/renderer.js"></script>
 </body>

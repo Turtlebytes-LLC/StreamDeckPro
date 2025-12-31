@@ -1,0 +1,13 @@
+[Unit]
+Description=Stream Deck Volume Status Listener
+After=pulseaudio.service pipewire.service
+PartOf=streamdeck.service
+
+[Service]
+Type=simple
+ExecStart=%h/StreamDeckPro/volume-status-listener.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

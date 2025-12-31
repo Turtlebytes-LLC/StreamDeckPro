@@ -1,7 +1,17 @@
 #!/bin/bash
 #
-# Start Stream Deck Simple Daemon
+# Start Stream Deck Daemon
+# Supports all Stream Deck models: Mini, Original, MK.2, XL, Plus, Pedal, Neo
 #
 
-cd ~/streamdeck-actions
-./streamdeck-daemon.py
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Check if daemon is already running
+if pgrep -f "streamdeck-daemon.py" > /dev/null; then
+    echo "Stream Deck daemon is already running."
+    echo "To restart: pkill -f streamdeck-daemon.py && ./start"
+    exit 1
+fi
+
+exec ./streamdeck-daemon.py "$@"

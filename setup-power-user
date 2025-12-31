@@ -1,0 +1,699 @@
+#!/usr/bin/env python3
+"""
+StreamDeckPro Power User Setup
+Detects your Stream Deck and creates a complete power user configuration.
+"""
+
+import os
+import sys
+import stat
+import subprocess
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).parent.resolve()
+
+DEVICE_PROFILES = {
+    "Stream Deck Mini": {"buttons": 6, "dials": 0, "touch_zones": 0},
+    "Stream Deck": {"buttons": 15, "dials": 0, "touch_zones": 0},
+    "Stream Deck MK.2": {"buttons": 15, "dials": 0, "touch_zones": 0},
+    "Stream Deck XL": {"buttons": 32, "dials": 0, "touch_zones": 0},
+    "Stream Deck +": {"buttons": 8, "dials": 4, "touch_zones": 4},
+    "Stream Deck Plus": {"buttons": 8, "dials": 4, "touch_zones": 4},
+    "Stream Deck Pedal": {"buttons": 0, "dials": 0, "touch_zones": 0, "pedals": 3},
+    "Stream Deck Neo": {"buttons": 8, "dials": 0, "touch_zones": 2},
+}
+
+def detect_device():
+    """Detect connected Stream Deck device."""
+    try:
+        from StreamDeck.DeviceManager import DeviceManager
+        devices = DeviceManager().enumerate()
+        if not devices:
+            return None, None
+        deck = devices[0]
+        deck.open()
+        name = deck.deck_type()
+        deck.close()
+        
+        for profile_name in sorted(DEVICE_PROFILES.keys(), key=len, reverse=True):
+            if profile_name in name:
+                return name, DEVICE_PROFILES[profile_name]
+        return name, DEVICE_PROFILES.get("Stream Deck", {"buttons": 15, "dials": 0, "touch_zones": 0})
+    except Exception as e:
+        print(f"Could not detect device: {e}")
+        return None, None
+
+def prompt(message, default=""):
+    """Prompt user for input."""
+    if default:
+        result = input(f"{message} [{default}]: ").strip()
+        return result if result else default
+    return input(f"{message}: ").strip()
+
+def prompt_yes_no(message, default=True):
+    """Prompt for yes/no."""
+    suffix = "[Y/n]" if default else "[y/N]"
+    result = input(f"{message} {suffix}: ").strip().lower()
+    if not result:
+        return default
+    return result in ('y', 'yes')
+
+def prompt_urls(max_count=6):
+    """Prompt for uptime monitor URLs."""
+    print(f"\n📡 Uptime Monitor URLs (up to {max_count}, blank to finish):")
+    urls = []
+    for i in range(max_count):
+        url = input(f"  URL {i+1}: ").strip()
+        if not url:
+            break
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        urls.append(url)
+    return urls
+
+def make_executable(path):
+    """Make a file executable."""
+    path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+def write_script(path, content):
+    """Write a shell script and make it executable."""
+    path.write_text(content)
+    make_executable(path)
+
+def create_button_scripts(buttons_dir, num_buttons, uptime_urls):
+    """Create button scripts based on device capabilities."""
+    
+    scripts = {
+        1: {
+            "script": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+cd "$SCRIPT_DIR"
+notify-send "Uptime Check" "Checking sites..." -t 1500 2>/dev/null
+python3 generate-uptime-image.py 2>/dev/null
+notify-send "Uptime Check" "Status updated!" -t 1500 2>/dev/null
+''',
+            "label": "UPTIME"
+        },
+        2: {
+            "script": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+cd "$SCRIPT_DIR"
+python3 generate-sysinfo-image.py 2>/dev/null
+''',
+            "label": "SYSTEM"
+        },
+        3: {
+            "script": '''#!/bin/bash
+gnome-terminal --geometry=120x40 -- htop 2>/dev/null || xterm -e htop 2>/dev/null || konsole -e htop &
+''',
+            "label": "HTOP"
+        },
+        4: {
+            "script": '''#!/bin/bash
+flameshot gui --clipboard 2>/dev/null || gnome-screenshot -a -c 2>/dev/null || scrot -s ~/screenshot.png
+''',
+            "label": "SCREEN"
+        },
+        5: {
+            "script": '''#!/bin/bash
+nautilus --new-window ~ 2>/dev/null || dolphin ~ 2>/dev/null || thunar ~ 2>/dev/null || xdg-open ~ &
+''',
+            "label": "FILES"
+        },
+        6: {
+            "script": '''#!/bin/bash
+if command -v wpctl &>/dev/null; then
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+else
+    pactl set-sink-mute @DEFAULT_SINK@ toggle
+fi
+''',
+            "label": "MUTE"
+        },
+        7: {
+            "script": '''#!/bin/bash
+code . 2>/dev/null || codium . 2>/dev/null || subl . 2>/dev/null || gedit &
+''',
+            "label": "CODE"
+        },
+        8: {
+            "script": '''#!/bin/bash
+loginctl lock-session 2>/dev/null || gnome-screensaver-command -l 2>/dev/null || xdg-screensaver lock
+''',
+            "label": "LOCK"
+        },
+    }
+    
+    for i in range(1, min(num_buttons + 1, 9)):
+        if i in scripts:
+            script_path = buttons_dir / f"button-{i}.sh"
+            write_script(script_path, scripts[i]["script"])
+            (buttons_dir / f"button-{i}.txt").write_text(scripts[i]["label"])
+    
+    for i in range(9, num_buttons + 1):
+        script_path = buttons_dir / f"button-{i}.sh"
+        write_script(script_path, f'''#!/bin/bash
+notify-send "Button {i}" "Not configured" -t 1500
+''')
+        (buttons_dir / f"button-{i}.txt").write_text(f"BTN{i}")
+    
+    create_uptime_generator(buttons_dir, uptime_urls)
+    create_sysinfo_generator(buttons_dir)
+
+def create_uptime_generator(buttons_dir, urls):
+    """Create the uptime image generator."""
+    urls_str = ",\n    ".join([f'"{u}"' for u in urls]) if urls else '"https://google.com"'
+    
+    script = f'''#!/usr/bin/env python3
+import subprocess
+import socket
+from pathlib import Path
+from urllib.parse import urlparse
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    print("PIL not installed: pip install pillow")
+    exit(1)
+
+URLS = [
+    {urls_str}
+]
+
+def check_url(url, timeout=3):
+    try:
+        parsed = urlparse(url)
+        host = parsed.netloc or parsed.path.split('/')[0]
+        port = 443 if parsed.scheme == 'https' else 80
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+def get_short_name(url):
+    parsed = urlparse(url)
+    host = parsed.netloc or parsed.path.split('/')[0]
+    parts = host.replace('www.', '').split('.')
+    return parts[0][:8].upper()
+
+def generate_image():
+    width, height = 120, 120
+    img = Image.new('RGB', (width, height), '#1a1a2e')
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
+    except:
+        font = ImageFont.load_default()
+    
+    y = 8
+    for url in URLS[:6]:
+        name = get_short_name(url)
+        status = check_url(url)
+        color = '#2ecc71' if status else '#e74c3c'
+        indicator = '●' if status else '○'
+        draw.text((8, y), f"{{indicator}} {{name}}", fill=color, font=font)
+        y += 18
+    
+    script_dir = Path(__file__).parent
+    img.save(script_dir / 'button-1.png')
+
+if __name__ == '__main__':
+    generate_image()
+'''
+    
+    path = buttons_dir / "generate-uptime-image.py"
+    path.write_text(script)
+    make_executable(path)
+
+def create_sysinfo_generator(buttons_dir):
+    """Create the system info image generator."""
+    script = '''#!/usr/bin/env python3
+import subprocess
+from pathlib import Path
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    print("PIL not installed")
+    exit(1)
+
+def get_cpu():
+    try:
+        with open('/proc/stat') as f:
+            line = f.readline()
+        vals = list(map(int, line.split()[1:]))
+        idle = vals[3]
+        total = sum(vals)
+        return min(100, max(0, int(100 * (1 - idle / total))))
+    except:
+        return 50
+
+def get_mem():
+    try:
+        with open('/proc/meminfo') as f:
+            lines = f.readlines()
+        info = {}
+        for line in lines[:3]:
+            parts = line.split()
+            info[parts[0].rstrip(':')] = int(parts[1])
+        used = info['MemTotal'] - info['MemAvailable']
+        return int(100 * used / info['MemTotal'])
+    except:
+        return 50
+
+def get_disk():
+    try:
+        result = subprocess.run(['df', '/'], capture_output=True, text=True)
+        line = result.stdout.strip().split('\\n')[1]
+        return int(line.split()[4].rstrip('%'))
+    except:
+        return 50
+
+def get_color(val):
+    if val < 50: return '#2ecc71'
+    if val < 80: return '#f39c12'
+    return '#e74c3c'
+
+def generate_image():
+    width, height = 120, 120
+    img = Image.new('RGB', (width, height), '#1a1a2e')
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
+        font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+    except:
+        font = font_sm = ImageFont.load_default()
+    
+    metrics = [
+        ("CPU", get_cpu()),
+        ("RAM", get_mem()),
+        ("DISK", get_disk()),
+    ]
+    
+    y = 10
+    bar_width = 80
+    for label, val in metrics:
+        draw.text((10, y), f"{label}", fill='#888888', font=font_sm)
+        draw.text((90, y), f"{val}%", fill='#ffffff', font=font_sm)
+        y += 14
+        draw.rectangle([10, y, 10 + bar_width, y + 12], outline='#444444')
+        fill_w = int(bar_width * val / 100)
+        if fill_w > 0:
+            draw.rectangle([11, y + 1, 10 + fill_w, y + 11], fill=get_color(val))
+        y += 22
+    
+    script_dir = Path(__file__).parent
+    img.save(script_dir / 'button-2.png')
+
+if __name__ == '__main__':
+    generate_image()
+'''
+    
+    path = buttons_dir / "generate-sysinfo-image.py"
+    path.write_text(script)
+    make_executable(path)
+
+def create_dial_scripts(dials_dir, num_dials, touch_dir=None):
+    """Create dial scripts."""
+    
+    dial_configs = {
+        1: {
+            "cw": '''#!/bin/bash
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ +5%
+''',
+            "ccw": '''#!/bin/bash
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ -5%
+''',
+            "press": '''#!/bin/bash
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || pactl set-sink-mute @DEFAULT_SINK@ toggle
+''',
+            "longpress": '''#!/bin/bash
+pavucontrol 2>/dev/null || systemsettings kcm_pulseaudio 2>/dev/null || gnome-control-center sound &
+'''
+        },
+        2: {
+            "cw": '''#!/bin/bash
+brightnessctl set +10% 2>/dev/null || xbacklight -inc 10 2>/dev/null
+''',
+            "ccw": '''#!/bin/bash
+brightnessctl set 10%- 2>/dev/null || xbacklight -dec 10 2>/dev/null
+''',
+            "press": '''#!/bin/bash
+brightnessctl set 50% 2>/dev/null || xbacklight -set 50 2>/dev/null
+''',
+            "longpress": '''#!/bin/bash
+gnome-control-center display 2>/dev/null || systemsettings kcm_kscreen 2>/dev/null &
+'''
+        },
+        3: {
+            "cw": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ +5%
+python3 "$SCRIPT_DIR/../touchscreen/generate-volume-image.py" 2>/dev/null &
+''',
+            "ccw": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ -5%
+python3 "$SCRIPT_DIR/../touchscreen/generate-volume-image.py" 2>/dev/null &
+''',
+            "press": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || pactl set-sink-mute @DEFAULT_SINK@ toggle
+python3 "$SCRIPT_DIR/../touchscreen/generate-volume-image.py" 2>/dev/null &
+''',
+            "longpress": '''#!/bin/bash
+pavucontrol 2>/dev/null || systemsettings kcm_pulseaudio 2>/dev/null || gnome-control-center sound &
+'''
+        },
+        4: {
+            "cw": '''#!/bin/bash
+xdotool key XF86AudioNext 2>/dev/null || playerctl next
+''',
+            "ccw": '''#!/bin/bash
+xdotool key XF86AudioPrev 2>/dev/null || playerctl previous
+''',
+            "press": '''#!/bin/bash
+xdotool key XF86AudioPlay 2>/dev/null || playerctl play-pause
+''',
+            "longpress": '''#!/bin/bash
+spotify 2>/dev/null || rhythmbox 2>/dev/null || vlc &
+'''
+        }
+    }
+    
+    for i in range(1, num_dials + 1):
+        config = dial_configs.get(i, dial_configs[1])
+        for action in ["cw", "ccw", "press", "longpress"]:
+            script_path = dials_dir / f"dial-{i}-{action}.sh"
+            write_script(script_path, config[action])
+
+def create_touch_scripts(touch_dir, num_zones):
+    """Create touchscreen zone scripts."""
+    
+    zone_configs = {
+        1: {
+            "tap": '''#!/bin/bash
+google-chrome 2>/dev/null || chromium 2>/dev/null || firefox &
+''',
+            "longpress": '''#!/bin/bash
+google-chrome --incognito 2>/dev/null || chromium --incognito 2>/dev/null || firefox --private-window &
+''',
+            "swipe-up": '''#!/bin/bash
+xdotool key ctrl+t
+''',
+            "swipe-down": '''#!/bin/bash
+xdotool key ctrl+w
+''',
+            "label": "BROWSER"
+        },
+        2: {
+            "tap": '''#!/bin/bash
+gnome-terminal 2>/dev/null || konsole 2>/dev/null || xterm &
+''',
+            "longpress": '''#!/bin/bash
+gnome-terminal -- tmux new-session -A -s main 2>/dev/null || konsole -e tmux new-session -A -s main &
+''',
+            "swipe-up": '''#!/bin/bash
+xdotool key ctrl+shift+t
+''',
+            "swipe-down": '''#!/bin/bash
+xdotool key ctrl+shift+w
+''',
+            "label": "TERM"
+        },
+        3: {
+            "tap": '''#!/bin/bash
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+python3 "$SCRIPT_DIR/generate-volume-image.py" 2>/dev/null
+''',
+            "longpress": '''#!/bin/bash
+pavucontrol 2>/dev/null || systemsettings kcm_pulseaudio 2>/dev/null || gnome-control-center sound &
+''',
+            "swipe-up": '''#!/bin/bash
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%+ 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ +10%
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+python3 "$SCRIPT_DIR/generate-volume-image.py" 2>/dev/null &
+''',
+            "swipe-down": '''#!/bin/bash
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%- 2>/dev/null || pactl set-sink-volume @DEFAULT_SINK@ -10%
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+python3 "$SCRIPT_DIR/generate-volume-image.py" 2>/dev/null &
+''',
+            "label": None
+        },
+        4: {
+            "tap": '''#!/bin/bash
+gnome-control-center 2>/dev/null || systemsettings 2>/dev/null || xfce4-settings-manager &
+''',
+            "longpress": '''#!/bin/bash
+gnome-system-monitor 2>/dev/null || ksysguard 2>/dev/null || xfce4-taskmanager &
+''',
+            "swipe-up": '''#!/bin/bash
+xdotool key super
+''',
+            "swipe-down": '''#!/bin/bash
+xdotool key super+d
+''',
+            "label": "SYSTEM"
+        }
+    }
+    
+    for i in range(1, num_zones + 1):
+        config = zone_configs.get(i, zone_configs[1])
+        
+        write_script(touch_dir / f"touch-{i}.sh", config["tap"])
+        write_script(touch_dir / f"touch-{i}-longpress.sh", config["longpress"])
+        write_script(touch_dir / f"touch-{i}-swipe-up.sh", config["swipe-up"])
+        write_script(touch_dir / f"touch-{i}-swipe-down.sh", config["swipe-down"])
+        write_script(touch_dir / f"touch-{i}-swipe-left.sh", "#!/bin/bash\nxdotool key alt+Left\n")
+        write_script(touch_dir / f"touch-{i}-swipe-right.sh", "#!/bin/bash\nxdotool key alt+Right\n")
+        
+        if config.get("label"):
+            (touch_dir / f"touch-{i}.txt").write_text(config["label"])
+    
+    write_script(touch_dir / "longswipe-left.sh", "#!/bin/bash\nxdotool key alt+Tab\n")
+    write_script(touch_dir / "longswipe-right.sh", "#!/bin/bash\nxdotool key alt+shift+Tab\n")
+    
+    create_volume_generator(touch_dir)
+
+def create_volume_generator(touch_dir):
+    """Create volume display generator for touchscreen."""
+    script = '''#!/usr/bin/env python3
+import subprocess
+from pathlib import Path
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    exit(1)
+
+def get_volume():
+    try:
+        result = subprocess.run(['wpctl', 'get-volume', '@DEFAULT_AUDIO_SINK@'], 
+                              capture_output=True, text=True, timeout=2)
+        output = result.stdout.strip()
+        if 'MUTED' in output:
+            return 0, True
+        vol = float(output.split()[1]) * 100
+        return int(vol), False
+    except:
+        return 50, False
+
+def generate_image():
+    width, height = 200, 100
+    volume, muted = get_volume()
+    
+    img = Image.new('RGB', (width, height), '#1a1a2e')
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+    except:
+        font_large = font_small = ImageFont.load_default()
+    
+    if muted:
+        draw.text((width//2, 25), "MUTED", fill='#ff4757', font=font_large, anchor='mm')
+        bar_color = '#555555'
+    else:
+        draw.text((width//2, 25), f"{volume}%", fill='#ffffff', font=font_large, anchor='mm')
+        bar_color = '#ff6b6b' if volume > 80 else '#feca57' if volume > 50 else '#1dd1a1'
+    
+    bar_x, bar_y = 20, 55
+    bar_width, bar_height = 160, 20
+    draw.rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], outline='#444444', width=1)
+    
+    fill_width = int(bar_width * min(volume, 100) / 100)
+    if fill_width > 0:
+        draw.rectangle([bar_x+1, bar_y+1, bar_x + fill_width - 1, bar_y + bar_height - 1], fill=bar_color)
+    
+    draw.text((width//2, 88), "VOLUME", fill='#888888', font=font_small, anchor='mm')
+    
+    script_dir = Path(__file__).parent
+    img.save(script_dir / 'touch-3.png')
+
+if __name__ == '__main__':
+    generate_image()
+'''
+    
+    path = touch_dir / "generate-volume-image.py"
+    path.write_text(script)
+    make_executable(path)
+
+def setup_autostart():
+    """Set up autostart for the daemon."""
+    autostart_dir = Path.home() / ".config" / "autostart"
+    autostart_dir.mkdir(parents=True, exist_ok=True)
+    
+    desktop_entry = f'''[Desktop Entry]
+Type=Application
+Name=StreamDeck Daemon
+Comment=Stream Deck Plus Action Daemon
+Exec=/usr/bin/python3 {SCRIPT_DIR}/streamdeck-daemon.py
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+'''
+    
+    desktop_file = autostart_dir / "streamdeck-daemon.desktop"
+    desktop_file.write_text(desktop_entry)
+    print(f"✓ Autostart configured: {desktop_file}")
+
+def main():
+    print("""
+╔═══════════════════════════════════════════════════════════════╗
+║          StreamDeckPro - Power User Setup                     ║
+╚═══════════════════════════════════════════════════════════════╝
+""")
+    
+    print("🔍 Detecting Stream Deck...")
+    device_name, profile = detect_device()
+    
+    if not device_name:
+        print("\n⚠️  No Stream Deck detected!")
+        print("   Make sure your device is connected and you have permissions.")
+        print("   You may need to set up udev rules:")
+        print("   sudo cp /path/to/streamdeck/udev/rules.d/* /etc/udev/rules.d/")
+        print("   sudo udevadm control --reload-rules")
+        print()
+        
+        if not prompt_yes_no("Continue with manual device selection?"):
+            sys.exit(1)
+        
+        print("\nAvailable device profiles:")
+        profiles = list(DEVICE_PROFILES.keys())
+        for i, name in enumerate(profiles, 1):
+            p = DEVICE_PROFILES[name]
+            print(f"  {i}. {name} ({p['buttons']} buttons, {p['dials']} dials, {p['touch_zones']} touch zones)")
+        
+        choice = prompt("Select device number", "5")
+        try:
+            device_name = profiles[int(choice) - 1]
+            profile = DEVICE_PROFILES[device_name]
+        except:
+            print("Invalid selection, using Stream Deck +")
+            device_name = "Stream Deck +"
+            profile = DEVICE_PROFILES["Stream Deck +"]
+    
+    print(f"\n✓ Device: {device_name}")
+    print(f"  Buttons: {profile['buttons']}")
+    print(f"  Dials: {profile['dials']}")
+    print(f"  Touch zones: {profile['touch_zones']}")
+    
+    uptime_urls = prompt_urls(6)
+    if uptime_urls:
+        print(f"\n✓ Configured {len(uptime_urls)} uptime monitor(s)")
+    
+    buttons_dir = SCRIPT_DIR / "buttons"
+    dials_dir = SCRIPT_DIR / "dials"
+    touch_dir = SCRIPT_DIR / "touchscreen"
+    
+    buttons_dir.mkdir(exist_ok=True)
+    dials_dir.mkdir(exist_ok=True)
+    touch_dir.mkdir(exist_ok=True)
+    
+    print("\n📝 Creating scripts...")
+    
+    if profile['buttons'] > 0:
+        create_button_scripts(buttons_dir, profile['buttons'], uptime_urls)
+        print(f"  ✓ {profile['buttons']} button scripts")
+    
+    if profile['dials'] > 0:
+        create_dial_scripts(dials_dir, profile['dials'], touch_dir)
+        print(f"  ✓ {profile['dials'] * 4} dial scripts")
+    
+    if profile['touch_zones'] > 0:
+        create_touch_scripts(touch_dir, profile['touch_zones'])
+        print(f"  ✓ {profile['touch_zones'] * 6 + 2} touch scripts")
+    
+    print("\n🖼️  Generating initial images...")
+    try:
+        subprocess.run(['python3', buttons_dir / 'generate-uptime-image.py'], 
+                      capture_output=True, timeout=10)
+        print("  ✓ Uptime monitor image")
+    except:
+        pass
+    
+    try:
+        subprocess.run(['python3', buttons_dir / 'generate-sysinfo-image.py'], 
+                      capture_output=True, timeout=10)
+        print("  ✓ System info image")
+    except:
+        pass
+    
+    if profile['touch_zones'] >= 3:
+        try:
+            subprocess.run(['python3', touch_dir / 'generate-volume-image.py'], 
+                          capture_output=True, timeout=10)
+            print("  ✓ Volume display image")
+        except:
+            pass
+    
+    print()
+    if prompt_yes_no("Set up autostart on login?", True):
+        setup_autostart()
+    
+    print(f"""
+╔═══════════════════════════════════════════════════════════════╗
+║                    Setup Complete! 🎉                         ║
+╚═══════════════════════════════════════════════════════════════╝
+
+To start the daemon now:
+  cd {SCRIPT_DIR}
+  ./start
+
+Your configuration:
+""")
+    
+    if profile['buttons'] > 0:
+        print("  📱 Buttons:")
+        print("     [1] Uptime Monitor  [2] System Stats")
+        print("     [3] htop            [4] Screenshot")
+        print("     [5] Files           [6] Mute Toggle")
+        print("     [7] Code Editor     [8] Lock Screen")
+    
+    if profile['dials'] > 0:
+        print("\n  🎛️  Dials:")
+        print("     Dial 1: Volume (rotate) / Mute (press)")
+        print("     Dial 2: Brightness (rotate) / 50% (press)")
+        print("     Dial 3: Volume + Display (rotate) / Mute (press)")
+        print("     Dial 4: Media Track (rotate) / Play/Pause (press)")
+    
+    if profile['touch_zones'] > 0:
+        print("\n  📺 Touch Zones:")
+        print("     [1] Browser - tap: open, long: incognito")
+        print("     [2] Terminal - tap: open, long: tmux")
+        print("     [3] Volume Display - shows current volume")
+        print("     [4] System - tap: settings, long: monitor")
+    
+    print()
+
+if __name__ == '__main__':
+    main()

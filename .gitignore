@@ -6,6 +6,7 @@ __pycache__/
 
 # User-specific configuration
 .ui-config.json
+.device-info.json
 daemon.log
 
 # Downloaded icons (user downloads separately)

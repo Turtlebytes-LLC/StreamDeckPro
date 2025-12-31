@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Stream Deck Daemon - Simple Script Executor
+Stream Deck Daemon - Universal Script Executor
+Supports ALL Stream Deck models: Mini, Original, MK.2, XL, Plus, Pedal, Neo
+
 Calls script files when buttons/dials/touchscreen are used
 Shows custom images and labels from files!
 Supports all gestures: swipes, long press, etc!
@@ -12,6 +14,7 @@ import time
 import subprocess
 import logging
 import threading
+import json
 from pathlib import Path
 from io import BytesIO
 
@@ -24,6 +27,84 @@ try:
 except ImportError:
     cairosvg = None
     SVG_SUPPORT = False
+
+# Device profiles for all Stream Deck models
+DEVICE_PROFILES = {
+    "Stream Deck Mini": {
+        "buttons": 6,
+        "button_layout": (3, 2),  # cols x rows
+        "button_size": (80, 80),
+        "dials": 0,
+        "touchscreen": None,
+        "pedals": 0,
+    },
+    "Stream Deck": {
+        "buttons": 15,
+        "button_layout": (5, 3),
+        "button_size": (72, 72),
+        "dials": 0,
+        "touchscreen": None,
+        "pedals": 0,
+    },
+    "Stream Deck MK.2": {
+        "buttons": 15,
+        "button_layout": (5, 3),
+        "button_size": (72, 72),
+        "dials": 0,
+        "touchscreen": None,
+        "pedals": 0,
+    },
+    "Stream Deck XL": {
+        "buttons": 32,
+        "button_layout": (8, 4),
+        "button_size": (96, 96),
+        "dials": 0,
+        "touchscreen": None,
+        "pedals": 0,
+    },
+    "Stream Deck +": {
+        "buttons": 8,
+        "button_layout": (4, 2),
+        "button_size": (120, 120),
+        "dials": 4,
+        "touchscreen": {"width": 800, "height": 100, "zones": 4},
+        "pedals": 0,
+    },
+    "Stream Deck Plus": {
+        "buttons": 8,
+        "button_layout": (4, 2),
+        "button_size": (120, 120),
+        "dials": 4,
+        "touchscreen": {"width": 800, "height": 100, "zones": 4},
+        "pedals": 0,
+    },
+    "Stream Deck Pedal": {
+        "buttons": 0,
+        "button_layout": (0, 0),
+        "button_size": (0, 0),
+        "dials": 0,
+        "touchscreen": None,
+        "pedals": 3,
+    },
+    "Stream Deck Neo": {
+        "buttons": 8,
+        "button_layout": (4, 2),
+        "button_size": (96, 96),
+        "dials": 0,
+        "touchscreen": {"width": 248, "height": 58, "zones": 2, "type": "info_strip"},
+        "pedals": 0,
+    },
+}
+
+# Default profile for unknown devices
+DEFAULT_PROFILE = {
+    "buttons": 15,
+    "button_layout": (5, 3),
+    "button_size": (72, 72),
+    "dials": 0,
+    "touchscreen": None,
+    "pedals": 0,
+}
 
 def load_svg_image(svg_path, target_width, target_height, icon_color="#FFFFFF", bg_color="#000000"):
     if not SVG_SUPPORT or cairosvg is None:
@@ -88,7 +169,7 @@ def resize_with_aspect_ratio(img, target_width, target_height):
     return background
 
 # Paths
-ACTIONS_DIR = Path.home() / "streamdeck-actions"
+ACTIONS_DIR = Path(__file__).parent.resolve()
 BUTTONS_DIR = ACTIONS_DIR / "buttons"
 DIALS_DIR = ACTIONS_DIR / "dials"
 TOUCH_DIR = ACTIONS_DIR / "touchscreen"
@@ -111,36 +192,26 @@ for handler in logging.getLogger().handlers:
 
 
 class StreamDeckDaemon:
-    """Simple daemon that executes scripts on Stream Deck events"""
+    """Universal daemon supporting all Stream Deck models"""
 
     def __init__(self):
         self.deck = None
         self.running = False
-
-        # Touchscreen is divided into 4 horizontal zones
-        # 800x100 screen = 200 pixels per zone
-        self.touch_zones = [
-            {"x": 0, "width": 200, "name": "touch-1"},
-            {"x": 200, "width": 200, "name": "touch-2"},
-            {"x": 400, "width": 200, "name": "touch-3"},
-            {"x": 600, "width": 200, "name": "touch-4"},
-        ]
-
-        # Track dial press timing for long press detection
+        self.device_profile = None
+        self.device_type = None
+        
+        self.touch_zones = []
+        
         self.dial_press_times = {}
         self.dial_longpress_timers = {}
         self.dial_longpress_triggered = {}
 
-        # Track touchscreen press timing for long press detection
         self.touch_press_times = {}
         self.touch_longpress_timers = {}
         self.touch_longpress_triggered = {}
 
-        # Track swipe timing for debouncing
         self.last_swipe_time = 0
-        self.swipe_debounce_delay = 0.3  # Wait 300ms between swipe triggers
-
-        # Track swipe for proper gesture detection
+        self.swipe_debounce_delay = 0.3
         self.swipe_in_progress = False
         self.swipe_start_x = 0
         self.swipe_start_y = 0
@@ -151,50 +222,143 @@ class StreamDeckDaemon:
         self.swipe_last_event_time = 0
         self.swipe_reset_timeout = 1.0
         self.swipe_min_distance = 30
-        self.swipe_completion_timer = None  # Timer for detecting swipe end (no SHORT event from device)
+        self.swipe_completion_timer = None
 
-        # Track file modification times for hot-reloading
         self.file_mtimes = {}
         self.last_reload_check = 0
-        self.reload_check_interval = 0.1  # Check for changes every 0.1 seconds
+        self.reload_check_interval = 0.1
+    
+    def get_device_profile(self, deck_type):
+        """Get configuration profile for the detected device"""
+        deck_lower = deck_type.lower()
+        
+        if deck_lower in [name.lower() for name in DEVICE_PROFILES]:
+            for name, profile in DEVICE_PROFILES.items():
+                if name.lower() == deck_lower:
+                    logging.info(f"Device profile matched (exact): {name}")
+                    return name, profile
+        
+        sorted_profiles = sorted(DEVICE_PROFILES.items(), key=lambda x: len(x[0]), reverse=True)
+        for name, profile in sorted_profiles:
+            if name.lower() in deck_lower or deck_lower in name.lower():
+                logging.info(f"Device profile matched: {name}")
+                return name, profile
+        
+        logging.warning(f"Unknown device '{deck_type}', using default profile")
+        return deck_type, DEFAULT_PROFILE
+    
+    def setup_touch_zones(self):
+        """Configure touchscreen zones based on device profile"""
+        if not self.device_profile or not self.device_profile.get("touchscreen"):
+            self.touch_zones = []
+            return
+        
+        ts = self.device_profile["touchscreen"]
+        zone_count = ts.get("zones", 4)
+        zone_width = ts["width"] // zone_count
+        
+        self.touch_zones = [
+            {"x": i * zone_width, "width": zone_width, "name": f"touch-{i+1}"}
+            for i in range(zone_count)
+        ]
+        logging.info(f"Configured {zone_count} touchscreen zones ({zone_width}px each)")
 
     def connect_device(self):
-        """Connect to Stream Deck"""
-        logging.info("Connecting to Stream Deck...")
+        """Connect to Stream Deck and configure based on device type"""
+        logging.info("Searching for Stream Deck devices...")
         dm = DeviceManager()
         decks = dm.enumerate()
 
         if len(decks) == 0:
             logging.error("No Stream Deck found!")
+            logging.error("Make sure your device is connected and you have proper permissions.")
+            logging.error("Try: sudo chmod 666 /dev/hidraw*")
             return False
+        
+        if len(decks) > 1:
+            logging.info(f"Found {len(decks)} Stream Deck devices:")
+            for i, d in enumerate(decks):
+                d.open()
+                logging.info(f"  [{i}] {d.deck_type()} (Serial: {d.get_serial_number()})")
+                d.close()
+            logging.info("Using first device. Multi-device support coming soon!")
 
         self.deck = decks[0]
         self.deck.open()
         self.deck.reset()
         self.deck.set_brightness(100)
+        
+        self.device_type, self.device_profile = self.get_device_profile(self.deck.deck_type())
+        self.setup_touch_zones()
+        
+        self.save_device_info()
 
-        logging.info(f"Connected to: {self.deck.deck_type()}")
+        logging.info(f"Connected to: {self.device_type}")
+        logging.info(f"  Buttons: {self.device_profile['buttons']}")
+        if self.device_profile['dials'] > 0:
+            logging.info(f"  Dials: {self.device_profile['dials']}")
+        if self.device_profile['touchscreen']:
+            ts = self.device_profile['touchscreen']
+            logging.info(f"  Touchscreen: {ts['width']}x{ts['height']} ({ts['zones']} zones)")
+        if self.device_profile['pedals'] > 0:
+            logging.info(f"  Pedals: {self.device_profile['pedals']}")
 
-        # Set up callbacks
-        if hasattr(self.deck, 'set_key_callback'):
+        if hasattr(self.deck, 'set_key_callback') and self.device_profile['buttons'] > 0:
             self.deck.set_key_callback(self.button_callback)
             logging.info("Button callbacks registered")
 
-        if hasattr(self.deck, 'set_dial_callback'):
+        if hasattr(self.deck, 'set_dial_callback') and self.device_profile['dials'] > 0:
             self.deck.set_dial_callback(self.dial_callback)
             logging.info("Dial callbacks registered")
 
-        if hasattr(self.deck, 'set_touchscreen_callback'):
+        if hasattr(self.deck, 'set_touchscreen_callback') and self.device_profile['touchscreen']:
             self.deck.set_touchscreen_callback(self.touchscreen_callback)
             logging.info("Touchscreen callbacks registered")
 
         return True
+    
+    def save_device_info(self):
+        """Save detected device info for configurator to read"""
+        if not self.deck:
+            return
+            
+        serial = None
+        firmware = None
+        try:
+            serial = self.deck.get_serial_number()
+        except Exception:
+            pass
+        try:
+            firmware = self.deck.get_firmware_version()
+        except Exception:
+            pass
+            
+        info = {
+            "device_type": self.device_type,
+            "serial": serial,
+            "firmware": firmware,
+            "profile": self.device_profile
+        }
+        info_path = ACTIONS_DIR / ".device-info.json"
+        try:
+            with open(info_path, 'w') as f:
+                json.dump(info, f, indent=2)
+        except Exception as e:
+            logging.warning(f"Could not save device info: {e}")
 
+    def get_button_size(self):
+        """Get button dimensions from device profile"""
+        if self.device_profile:
+            return self.device_profile['button_size']
+        return (120, 120)
+    
     def load_image_for_button(self, button_num):
         """Load custom image for a button, or create default"""
+        btn_w, btn_h = self.get_button_size()
+        
         svg_path = BUTTONS_DIR / f"button-{button_num}.svg"
         if svg_path.exists():
-            img = load_svg_image(svg_path, 120, 120)
+            img = load_svg_image(svg_path, btn_w, btn_h)
             if img:
                 return img
         
@@ -204,22 +368,21 @@ class StreamDeckDaemon:
                 try:
                     img = Image.open(img_path)
                     img = img.convert('RGB')
-                    img = resize_with_aspect_ratio(img, 120, 120)
+                    img = resize_with_aspect_ratio(img, btn_w, btn_h)
                     return img
                 except Exception as e:
                     logging.error(f"Error loading {img_path}: {e}")
 
-        # No image found, create default
-        img = Image.new('RGB', (120, 120), color='#1a1a1a')
+        img = Image.new('RGB', (btn_w, btn_h), color='#1a1a1a')
         draw = ImageDraw.Draw(img)
 
-        # Draw button number
+        font_size = max(24, btn_w // 3)
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejavuSans-Bold.ttf", 48)
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
         except:
             font = ImageFont.load_default()
 
-        draw.text((60, 60), str(button_num), fill='#666666', font=font, anchor="mm")
+        draw.text((btn_w // 2, btn_h // 2), str(button_num), fill='#666666', font=font, anchor="mm")
 
         return img
 
@@ -292,6 +455,7 @@ class StreamDeckDaemon:
         """Render a button with image and optional text label"""
         # Load base image
         img = self.load_image_for_button(button_num)
+        btn_w, btn_h = self.get_button_size()
 
         # Load label and overlay if exists
         label = self.load_label_for_button(button_num)
@@ -304,42 +468,44 @@ class StreamDeckDaemon:
             except:
                 font = ImageFont.load_default()
 
-            # Wrap text to fit button width
-            lines = self.wrap_text(label, font, 115)
+            # Wrap text to fit button width (with small margin)
+            lines = self.wrap_text(label, font, btn_w - 5)
 
             # Calculate line height based on font size
             line_height = fontsize + 5
+            center_x = btn_w // 2
+            center_y = btn_h // 2
 
             # Position text based on preference
             if position == 'top':
                 # Draw at top
                 bg_height = len(lines) * line_height + 5
-                draw.rectangle([(0, 0), (120, bg_height)], fill='#000000dd')
+                draw.rectangle([(0, 0), (btn_w, bg_height)], fill='#000000dd')
 
                 y_offset = 5
                 for line in lines:
-                    draw.text((60, y_offset), line, fill='#ffffff', font=font, anchor="mt")
+                    draw.text((center_x, y_offset), line, fill='#ffffff', font=font, anchor="mt")
                     y_offset += line_height
 
             elif position == 'middle':
                 # Draw in middle
                 total_height = len(lines) * line_height
-                start_y = 60 - (total_height // 2)
-                draw.rectangle([(0, start_y - 5), (120, start_y + total_height + 5)], fill='#000000dd')
+                start_y = center_y - (total_height // 2)
+                draw.rectangle([(0, start_y - 5), (btn_w, start_y + total_height + 5)], fill='#000000dd')
 
                 y_offset = start_y
                 for line in lines:
-                    draw.text((60, y_offset), line, fill='#ffffff', font=font, anchor="mt")
+                    draw.text((center_x, y_offset), line, fill='#ffffff', font=font, anchor="mt")
                     y_offset += line_height
 
             else:  # bottom (default)
                 # Draw at bottom
                 bg_height = len(lines) * line_height + 5
-                draw.rectangle([(0, 120 - bg_height), (120, 120)], fill='#000000dd')
+                draw.rectangle([(0, btn_h - bg_height), (btn_w, btn_h)], fill='#000000dd')
 
-                y_offset = 120 - bg_height + 5
+                y_offset = btn_h - bg_height + 5
                 for line in lines:
-                    draw.text((60, y_offset), line, fill='#ffffff', font=font, anchor="mt")
+                    draw.text((center_x, y_offset), line, fill='#ffffff', font=font, anchor="mt")
                     y_offset += line_height
 
         return img
@@ -348,13 +514,15 @@ class StreamDeckDaemon:
         """Update all button displays"""
         if not self.deck or not hasattr(self.deck, 'set_key_image'):
             return
+        
+        if not self.device_profile or self.device_profile['buttons'] == 0:
+            return
 
-        key_count = self.deck.key_count()
+        key_count = min(self.deck.key_count(), self.device_profile['buttons'])
         for key in range(key_count):
             button_num = key + 1
             img = self.render_button(button_num)
 
-            # Convert to JPEG
             buf = BytesIO()
             img.save(buf, format='JPEG', quality=95)
 
@@ -593,8 +761,13 @@ class StreamDeckDaemon:
     def _execute_swipe(self, dx, dy, zones_crossed):
         start_x = self.swipe_start_x
         
-        is_edge_swipe_right = start_x < 80 and dx > 50
-        is_edge_swipe_left = start_x > 720 and dx < -50
+        ts_width = 800
+        if self.device_profile and self.device_profile.get('touchscreen'):
+            ts_width = self.device_profile['touchscreen']['width']
+        
+        edge_threshold = ts_width // 10
+        is_edge_swipe_right = start_x < edge_threshold and dx > 50
+        is_edge_swipe_left = start_x > (ts_width - edge_threshold) and dx < -50
         
         if is_edge_swipe_right:
             script = TOUCH_DIR / "longswipe-right.sh"
@@ -673,11 +846,22 @@ notify-send "Stream Deck" "{action_description}" -t 2000
             f.write(template)
         os.chmod(script_path, 0o755)
 
+    def get_touch_zone_size(self):
+        """Get touchscreen zone dimensions from device profile"""
+        if self.device_profile and self.device_profile.get('touchscreen'):
+            ts = self.device_profile['touchscreen']
+            zone_count = ts.get('zones', 4)
+            zone_width = ts['width'] // zone_count
+            return (zone_width, ts['height'])
+        return (200, 100)
+    
     def load_image_for_touch_zone(self, zone_name):
         """Load image for touchscreen zone"""
+        zone_w, zone_h = self.get_touch_zone_size()
+        
         svg_path = TOUCH_DIR / f"{zone_name}.svg"
         if svg_path.exists():
-            img = load_svg_image(svg_path, 200, 100)
+            img = load_svg_image(svg_path, zone_w, zone_h)
             if img:
                 return img
         
@@ -687,7 +871,7 @@ notify-send "Stream Deck" "{action_description}" -t 2000
                 try:
                     img = Image.open(img_path)
                     img = img.convert('RGB')
-                    img = resize_with_aspect_ratio(img, 200, 100)
+                    img = resize_with_aspect_ratio(img, zone_w, zone_h)
                     return img
                 except Exception as e:
                     logging.error(f"Error loading {img_path}: {e}")
@@ -734,47 +918,44 @@ notify-send "Stream Deck" "{action_description}" -t 2000
         """Check if any image or label files have been added or modified"""
         current_time = time.time()
 
-        # Only check every N seconds
         if current_time - self.last_reload_check < self.reload_check_interval:
             return False
 
         self.last_reload_check = current_time
 
-        # Get all image and label files
         files_to_check = []
 
-        # Button images, labels, and text positions
-        for i in range(1, 9):
+        button_count = self.device_profile['buttons'] if self.device_profile else 8
+        for i in range(1, button_count + 1):
             for ext in ['.png', '.jpg', '.jpeg', '.svg', '.txt']:
                 files_to_check.append(BUTTONS_DIR / f"button-{i}{ext}")
             files_to_check.append(BUTTONS_DIR / f"button-{i}-position.txt")
+            files_to_check.append(BUTTONS_DIR / f"button-{i}-fontsize.txt")
 
-        # Touchscreen images, labels, and text positions
-        for i in range(1, 5):
-            for ext in ['.png', '.jpg', '.jpeg', '.svg', '.txt']:
-                files_to_check.append(TOUCH_DIR / f"touch-{i}{ext}")
-            files_to_check.append(TOUCH_DIR / f"touch-{i}-position.txt")
+        if self.device_profile and self.device_profile.get('touchscreen'):
+            zone_count = self.device_profile['touchscreen'].get('zones', 4)
+            for i in range(1, zone_count + 1):
+                for ext in ['.png', '.jpg', '.jpeg', '.svg', '.txt']:
+                    files_to_check.append(TOUCH_DIR / f"touch-{i}{ext}")
+                files_to_check.append(TOUCH_DIR / f"touch-{i}-position.txt")
+                files_to_check.append(TOUCH_DIR / f"touch-{i}-fontsize.txt")
 
-        # Check modification times
         changed = False
         for file_path in files_to_check:
             if file_path.exists():
                 try:
                     mtime = file_path.stat().st_mtime
                     if str(file_path) not in self.file_mtimes:
-                        # New file detected
                         logging.info(f"🔄 New file detected: {file_path.name}")
                         self.file_mtimes[str(file_path)] = mtime
                         changed = True
                     elif self.file_mtimes[str(file_path)] != mtime:
-                        # File modified
                         logging.info(f"🔄 File modified: {file_path.name}")
                         self.file_mtimes[str(file_path)] = mtime
                         changed = True
                 except Exception as e:
                     logging.debug(f"Error checking {file_path}: {e}")
             else:
-                # File was deleted
                 if str(file_path) in self.file_mtimes:
                     logging.info(f"🔄 File deleted: {file_path.name}")
                     del self.file_mtimes[str(file_path)]
@@ -793,37 +974,41 @@ notify-send "Stream Deck" "{action_description}" -t 2000
         """Update the touchscreen LCD with custom images and labels"""
         if not self.deck or not hasattr(self.deck, 'set_touchscreen_image'):
             return
+        
+        if not self.device_profile or not self.device_profile.get('touchscreen'):
+            return
+        
+        ts = self.device_profile['touchscreen']
+        ts_width = ts['width']
+        ts_height = ts['height']
+        zone_w, zone_h = self.get_touch_zone_size()
 
-        # Create full touchscreen image
-        img = Image.new('RGB', (800, 100), color='#0a0a0a')
+        img = Image.new('RGB', (ts_width, ts_height), color='#0a0a0a')
 
-        # Draw each zone
         for i, zone in enumerate(self.touch_zones):
             x = zone['x']
             zone_name = zone['name']
 
-            # Try to load custom image for this zone
             zone_img = self.load_image_for_touch_zone(zone_name)
             if zone_img:
                 img.paste(zone_img, (x, 0))
             else:
-                # No image, draw default background
                 draw = ImageDraw.Draw(img)
 
-                # Check if script exists
                 script = TOUCH_DIR / f"{zone_name}.sh"
                 if script.exists():
-                    color = '#1a3a2a'  # Dark green if script exists
+                    color = '#1a3a2a'
                     text_color = '#00ff88'
                 else:
-                    color = '#1a1a1a'  # Dark gray if no script
+                    color = '#1a1a1a'
                     text_color = '#666666'
 
-                draw.rectangle([(x, 0), (x + 200, 100)], fill=color)
+                draw.rectangle([(x, 0), (x + zone_w, ts_height)], fill=color)
 
-                # Load and draw label
                 label = self.load_label_for_touch_zone(zone_name)
                 position = self.load_text_position_for_touch_zone(zone_name)
+                center_x = x + zone_w // 2
+                center_y = ts_height // 2
 
                 if label:
                     fontsize = self.load_font_size_for_touch_zone(zone_name)
@@ -833,57 +1018,48 @@ notify-send "Stream Deck" "{action_description}" -t 2000
                     except:
                         font = ImageFont.load_default()
 
-                    # Wrap text to fit touchscreen zone width (200px)
-                    lines = self.wrap_text(label, font, 195)
-
-                    # Calculate line height based on font size
+                    lines = self.wrap_text(label, font, zone_w - 5)
                     line_height = fontsize + 5
 
-                    # Position text based on preference
                     if position == 'top':
                         y_offset = 5
-                        for line in lines[:2]:  # Max 2 lines
-                            draw.text((x + 100, y_offset), line, fill=text_color, font=font, anchor="mt")
+                        for line in lines[:2]:
+                            draw.text((center_x, y_offset), line, fill=text_color, font=font, anchor="mt")
                             y_offset += line_height
                     elif position == 'bottom':
-                        y_offset = 95 - (len(lines[:2]) - 1) * line_height
-                        for line in lines[:2]:  # Max 2 lines
-                            draw.text((x + 100, y_offset), line, fill=text_color, font=font, anchor="mt")
+                        y_offset = ts_height - 5 - (len(lines[:2]) - 1) * line_height
+                        for line in lines[:2]:
+                            draw.text((center_x, y_offset), line, fill=text_color, font=font, anchor="mb")
                             y_offset += line_height
-                    else:  # middle (default)
+                    else:
                         total_height = len(lines[:2]) * line_height
-                        y_offset = 50 - (total_height // 2)
-                        for line in lines[:2]:  # Max 2 lines
-                            draw.text((x + 100, y_offset), line, fill=text_color, font=font, anchor="mt")
+                        y_offset = center_y - (total_height // 2)
+                        for line in lines[:2]:
+                            draw.text((center_x, y_offset), line, fill=text_color, font=font, anchor="mt")
                             y_offset += line_height
                 else:
-                    # Just show zone number (always centered)
                     try:
                         font = ImageFont.truetype(
                             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
                     except:
                         font = ImageFont.load_default()
 
-                    draw.text((x + 100, 50), f"Zone {i+1}", fill=text_color, font=font, anchor="mm")
+                    draw.text((center_x, center_y), f"Zone {i+1}", fill=text_color, font=font, anchor="mm")
 
-        # Draw dark borders around all zones (after all zones are rendered)
         draw = ImageDraw.Draw(img)
         for i, zone in enumerate(self.touch_zones):
             x = zone['x']
 
-            # Draw left border for each zone
-            if i > 0:  # Skip leftmost border
-                draw.line([(x, 0), (x, 100)], fill='#000000', width=4)
+            if i > 0:
+                draw.line([(x, 0), (x, ts_height)], fill='#000000', width=4)
 
-            # Draw right border for last zone
             if i == len(self.touch_zones) - 1:
-                draw.line([(x + 200, 0), (x + 200, 100)], fill='#000000', width=4)
+                draw.line([(x + zone_w, 0), (x + zone_w, ts_height)], fill='#000000', width=4)
 
-        # Send to device
         try:
             buf = BytesIO()
             img.save(buf, format='JPEG', quality=95)
-            self.deck.set_touchscreen_image(buf.getvalue(), 0, 0, 800, 100)
+            self.deck.set_touchscreen_image(buf.getvalue(), 0, 0, ts_width, ts_height)
         except Exception as e:
             logging.error(f"Error updating touchscreen: {e}")
 
@@ -903,27 +1079,38 @@ notify-send "Stream Deck" "{action_description}" -t 2000
 
         logging.info("")
         logging.info("="*60)
-        logging.info("Stream Deck Daemon Running - ALL GESTURES ENABLED!")
+        logging.info(f"Stream Deck Daemon Running - {self.device_type or 'Unknown Device'}")
         logging.info("="*60)
         logging.info("")
         logging.info(f"Actions directory: {ACTIONS_DIR}")
         logging.info("")
-        logging.info("Supported gestures:")
-        logging.info("  Buttons: button-N.sh")
-        logging.info("  Dials: dial-N-cw.sh, dial-N-ccw.sh, dial-N-press.sh, dial-N-longpress.sh")
-        logging.info("  Touch tap: touch-N.sh, touch-N-longpress.sh")
-        logging.info("  Touch swipe: touch-N-swipe-up/down/left/right.sh")
-        logging.info("  Long swipe: longswipe-left.sh, longswipe-right.sh")
-        logging.info("")
-        logging.info("Long swipe gesture:")
-        logging.info("  - Swipe RIGHT: Start from LEFT edge, swipe right quickly")
-        logging.info("  - Swipe LEFT: Start from RIGHT edge, swipe left quickly")
+        logging.info("Supported gestures for this device:")
+        
+        profile = self.device_profile or DEFAULT_PROFILE
+        
+        if profile['buttons'] > 0:
+            logging.info(f"  Buttons (1-{profile['buttons']}): button-N.sh")
+        
+        if profile['dials'] > 0:
+            logging.info(f"  Dials (1-{profile['dials']}): dial-N-cw.sh, dial-N-ccw.sh, dial-N-press.sh, dial-N-longpress.sh")
+        
+        if profile.get('touchscreen'):
+            zones = profile['touchscreen'].get('zones', 4)
+            logging.info(f"  Touch zones (1-{zones}): touch-N.sh, touch-N-longpress.sh")
+            logging.info("  Touch swipe: touch-N-swipe-up/down/left/right.sh")
+            logging.info("  Long swipe: longswipe-left.sh, longswipe-right.sh")
+        
+        if profile['pedals'] > 0:
+            logging.info(f"  Pedals (1-{profile['pedals']}): pedal-N.sh")
+        
         logging.info("")
         logging.info("Customize with images and labels:")
-        logging.info("  - Add button-N.png (image for button N)")
-        logging.info("  - Add button-N.txt (label for button N)")
-        logging.info("  - Add touch-N.png (image for touchscreen zone N)")
-        logging.info("  - Add touch-N.txt (label for touchscreen zone N)")
+        if profile['buttons'] > 0:
+            logging.info("  - Add button-N.png/svg (image for button N)")
+            logging.info("  - Add button-N.txt (label for button N)")
+        if profile.get('touchscreen'):
+            logging.info("  - Add touch-N.png/svg (image for touchscreen zone N)")
+            logging.info("  - Add touch-N.txt (label for touchscreen zone N)")
         logging.info("")
         logging.info(f"Log file: {LOG_FILE}")
         logging.info("")

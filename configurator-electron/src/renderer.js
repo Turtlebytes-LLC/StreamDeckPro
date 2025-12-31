@@ -4,9 +4,59 @@ let dirs = {};
 let currentIconTarget = null;
 let allIcons = [];
 let darkMode = false;
+let deviceInfo = null;
+
+async function loadDeviceInfo() {
+  const infoPath = dirs.streamdeck + '/.device-info.json';
+  const result = await window.api.readFile(infoPath);
+  if (result.success) {
+    try {
+      deviceInfo = JSON.parse(result.content);
+      updateDeviceStatus();
+    } catch (e) {
+      deviceInfo = null;
+    }
+  }
+}
+
+function getButtonCount() {
+  return deviceInfo?.profile?.buttons || 8;
+}
+
+function getDialCount() {
+  return deviceInfo?.profile?.dials || 4;
+}
+
+function getTouchZoneCount() {
+  return deviceInfo?.profile?.touchscreen?.zones || 4;
+}
+
+function hasDials() {
+  return getDialCount() > 0;
+}
+
+function hasTouchscreen() {
+  return deviceInfo?.profile?.touchscreen != null;
+}
+
+function updateDeviceStatus() {
+  const deviceName = deviceInfo?.device_type || 'Stream Deck Plus';
+  document.getElementById('status-text').textContent = `Connected: ${deviceName}`;
+  
+  const dialsTab = document.querySelector('[data-tab="dials"]');
+  const touchTab = document.querySelector('[data-tab="touchscreen"]');
+  
+  if (dialsTab) {
+    dialsTab.style.display = hasDials() ? '' : 'none';
+  }
+  if (touchTab) {
+    touchTab.style.display = hasTouchscreen() ? '' : 'none';
+  }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   dirs = await window.api.getDirectories();
+  await loadDeviceInfo();
   initDarkMode();
   setupTabs();
   setupKeyboardShortcuts();
@@ -14,10 +64,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupIconModal();
 
   await loadButtonsTab();
-  await loadDialsTab();
-  await loadTouchscreenTab();
+  if (hasDials()) await loadDialsTab();
+  if (hasTouchscreen()) await loadTouchscreenTab();
 
-  showToast('Ready to configure your Stream Deck', 'success');
+  const deviceName = deviceInfo?.device_type || 'Stream Deck';
+  showToast(`Ready to configure your ${deviceName}`, 'success');
 });
 
 function initDarkMode() {
@@ -258,7 +309,8 @@ async function loadButtonsTab() {
   const scrollPos = container.scrollTop;
   container.innerHTML = '';
 
-  for (let i = 1; i <= 8; i++) {
+  const buttonCount = getButtonCount();
+  for (let i = 1; i <= buttonCount; i++) {
     const card = await createButtonCard(i);
     container.appendChild(card);
   }
@@ -267,7 +319,8 @@ async function loadButtonsTab() {
 
   document.getElementById('apply-button-fontsize').onclick = async () => {
     const fontSize = document.getElementById('button-fontsize-all').value;
-    for (let i = 1; i <= 8; i++) {
+    const buttonCount = getButtonCount();
+    for (let i = 1; i <= buttonCount; i++) {
       await writeFile(dirs.buttons + '/button-' + i + '-fontsize.txt', fontSize);
     }
     showToast(`Font size ${fontSize} applied to all buttons`, 'success');
@@ -405,7 +458,8 @@ async function loadDialsTab() {
   const scrollPos = container.scrollTop;
   container.innerHTML = '';
 
-  for (let i = 1; i <= 4; i++) {
+  const dialCount = getDialCount();
+  for (let i = 1; i <= dialCount; i++) {
     const card = await createDialCard(i);
     container.appendChild(card);
   }
@@ -475,7 +529,8 @@ async function loadTouchscreenTab() {
   const scrollPos = container.scrollTop;
   container.innerHTML = '';
 
-  for (let i = 1; i <= 4; i++) {
+  const zoneCount = getTouchZoneCount();
+  for (let i = 1; i <= zoneCount; i++) {
     const card = await createTouchCard(i);
     container.appendChild(card);
   }
@@ -487,7 +542,8 @@ async function loadTouchscreenTab() {
 
   document.getElementById('apply-touch-fontsize').onclick = async () => {
     const fontSize = document.getElementById('touch-fontsize-all').value;
-    for (let i = 1; i <= 4; i++) {
+    const zoneCount = getTouchZoneCount();
+    for (let i = 1; i <= zoneCount; i++) {
       await writeFile(dirs.touch + '/touch-' + i + '-fontsize.txt', fontSize);
     }
     showToast(`Font size ${fontSize} applied to all zones`, 'success');

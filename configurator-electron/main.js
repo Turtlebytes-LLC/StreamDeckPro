@@ -5,7 +5,8 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
-const STREAMDECK_DIR = path.join(require('os').homedir(), 'streamdeck-actions');
+// Use the parent directory of configurator-electron (the project root)
+const STREAMDECK_DIR = path.join(__dirname, '..');
 const BUTTONS_DIR = path.join(STREAMDECK_DIR, 'buttons');
 const DIALS_DIR = path.join(STREAMDECK_DIR, 'dials');
 const TOUCH_DIR = path.join(STREAMDECK_DIR, 'touchscreen');

@@ -143,14 +143,26 @@ function setupKeyboardShortcuts() {
       e.preventDefault();
       document.getElementById('theme-toggle').click();
     }
+
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+      refreshAll();
+    }
   });
 }
 
 function setupHeaderButtons() {
+  document.getElementById('refresh-btn').addEventListener('click', refreshAll);
   document.getElementById('export-btn').addEventListener('click', exportConfig);
   document.getElementById('import-btn').addEventListener('click', importConfig);
   document.getElementById('autostart-btn').addEventListener('click', toggleAutostart);
   updateAutostartButton();
+}
+
+async function refreshAll() {
+  showToast('Refreshing...', 'info');
+  await Promise.all([loadButtonsTab(), loadDialsTab(), loadTouchscreenTab()]);
+  showToast('Refreshed', 'success');
 }
 
 async function updateAutostartButton() {

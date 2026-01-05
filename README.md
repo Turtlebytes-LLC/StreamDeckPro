@@ -54,7 +54,7 @@ The GUI lets you:
 - Export/import your entire configuration
 
 #### Configure Your Buttons
-![Button Configuration](images/configure-buttons.png)
+![Button Configuration](images/configure-buttons.png?1)
 *Easily assign scripts, images, and labels to your 8 LCD buttons*
 
 #### Configure Your Dials
@@ -151,7 +151,7 @@ streamdeck-actions/
 4. Optionally add an image and label
 5. Done! Changes take effect immediately
 
-![Button Scripts Example](images/button-scripts.png)
+![Button Scripts Example](images/button-scripts.png?1)
 *Browse through example scripts or create your own custom actions*
 
 **Manual Method:**

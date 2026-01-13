@@ -1,3 +1,3 @@
 #!/bin/bash
-# Open File Manager
-nautilus &
+# Open file manager
+dolphin ~ &

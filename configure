@@ -1,4 +1,6 @@
 #!/bin/bash
-# Launch Stream Deck Configuration UI (Electron)
-cd ~/streamdeck-actions
+# Launch Stream Deck Configuration UI - Official Style
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
 ./configure-electron

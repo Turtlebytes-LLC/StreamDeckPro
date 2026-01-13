@@ -1,3 +1,3 @@
 #!/bin/bash
-# Show Desktop (Minimize All)
-xdotool key Super_L+d
+# Show desktop - minimize all windows
+xdotool key super+d

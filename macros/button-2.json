@@ -1,0 +1,192 @@
+[
+  {
+    "type": "press",
+    "key": "t",
+    "time": 4.76837158203125e-07
+  },
+  {
+    "type": "release",
+    "key": "t",
+    "time": 0.09903526306152344
+  },
+  {
+    "type": "press",
+    "key": "e",
+    "time": 0.13881230354309082
+  },
+  {
+    "type": "press",
+    "key": "r",
+    "time": 0.18944430351257324
+  },
+  {
+    "type": "press",
+    "key": "m",
+    "time": 0.25861263275146484
+  },
+  {
+    "type": "release",
+    "key": "e",
+    "time": 0.2734994888305664
+  },
+  {
+    "type": "release",
+    "key": "r",
+    "time": 0.32024288177490234
+  },
+  {
+    "type": "release",
+    "key": "m",
+    "time": 0.3461439609527588
+  },
+  {
+    "type": "press",
+    "key": "i",
+    "time": 0.3590571880340576
+  },
+  {
+    "type": "press",
+    "key": "n",
+    "time": 0.4320242404937744
+  },
+  {
+    "type": "release",
+    "key": "i",
+    "time": 0.48790669441223145
+  },
+  {
+    "type": "release",
+    "key": "n",
+    "time": 0.5239994525909424
+  },
+  {
+    "type": "press",
+    "key": "a",
+    "time": 0.5385482311248779
+  },
+  {
+    "type": "release",
+    "key": "a",
+    "time": 0.6424884796142578
+  },
+  {
+    "type": "press",
+    "key": "l",
+    "time": 0.671133279800415
+  },
+  {
+    "type": "press",
+    "key": "space",
+    "time": 0.7210745811462402
+  },
+  {
+    "type": "release",
+    "key": "l",
+    "time": 0.8042044639587402
+  },
+  {
+    "type": "release",
+    "key": "space",
+    "time": 0.8824610710144043
+  },
+  {
+    "type": "press",
+    "key": "t",
+    "time": 1.2343730926513672
+  },
+  {
+    "type": "press",
+    "key": "e",
+    "time": 1.2900948524475098
+  },
+  {
+    "type": "release",
+    "key": "t",
+    "time": 1.3512582778930664
+  },
+  {
+    "type": "release",
+    "key": "e",
+    "time": 1.4059922695159912
+  },
+  {
+    "type": "press",
+    "key": "x",
+    "time": 1.5654244422912598
+  },
+  {
+    "type": "release",
+    "key": "x",
+    "time": 1.6842546463012695
+  },
+  {
+    "type": "press",
+    "key": "backspace",
+    "time": 2.094409227371216
+  },
+  {
+    "type": "release",
+    "key": "backspace",
+    "time": 2.166177749633789
+  },
+  {
+    "type": "press",
+    "key": "s",
+    "time": 2.232811689376831
+  },
+  {
+    "type": "press",
+    "key": "t",
+    "time": 2.332897424697876
+  },
+  {
+    "type": "release",
+    "key": "s",
+    "time": 2.372528076171875
+  },
+  {
+    "type": "release",
+    "key": "t",
+    "time": 2.454474687576294
+  },
+  {
+    "type": "press",
+    "key": "ctrl",
+    "time": 3.004413366317749
+  },
+  {
+    "type": "press",
+    "key": "alt",
+    "time": 3.04133939743042
+  },
+  {
+    "type": "press",
+    "key": "t",
+    "time": 3.375333309173584
+  },
+  {
+    "type": "release",
+    "key": "t",
+    "time": 3.45524001121521
+  },
+  {
+    "type": "release",
+    "key": "ctrl",
+    "time": 3.598256826400757
+  },
+  {
+    "type": "release",
+    "key": "alt",
+    "time": 3.617231845855713
+  },
+  {
+    "type": "press",
+    "key": "esc",
+    "time": 5.525043249130249
+  },
+  {
+    "type": "release",
+    "key": "esc",
+    "time": 5.585529088973999
+  }
+]

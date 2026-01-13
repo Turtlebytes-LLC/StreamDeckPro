@@ -199,9 +199,14 @@ class StreamDeckDaemon:
         self.running = False
         self.device_profile = None
         self.device_type = None
-        
+        self.device_connected = False
+        self.reconnect_interval = 2.0
+        self.last_reconnect_attempt = 0
+        self.last_device_check = 0
+        self.device_check_interval = 2.0  # Check for device presence every 2 seconds
+
         self.touch_zones = []
-        
+
         self.dial_press_times = {}
         self.dial_longpress_timers = {}
         self.dial_longpress_triggered = {}
@@ -226,7 +231,11 @@ class StreamDeckDaemon:
 
         self.file_mtimes = {}
         self.last_reload_check = 0
-        self.reload_check_interval = 0.1
+        self.reload_check_interval = 0.5
+
+        # Brightness monitoring
+        self.last_brightness_mtime = 0
+        self.current_brightness = 100
     
     def get_device_profile(self, deck_type):
         """Get configuration profile for the detected device"""
@@ -285,8 +294,52 @@ class StreamDeckDaemon:
 
         self.deck = decks[0]
         self.deck.open()
-        self.deck.reset()
-        self.deck.set_brightness(100)
+
+        try:
+            self.deck.reset()
+
+            # Read brightness setting from file if it exists
+            brightness = 100  # Default brightness percentage (0-100)
+            brightness_file = ACTIONS_DIR / '.brightness'
+            if brightness_file.exists():
+                try:
+                    brightness_hex = brightness_file.read_text().strip()
+                    # Convert hex value (0-FF) to 0-255, then to percentage (0-100)
+                    brightness_raw = int(brightness_hex, 16)
+                    brightness = round((brightness_raw / 255) * 100)
+                    self.last_brightness_mtime = brightness_file.stat().st_mtime
+                    logging.info(f"Loaded brightness setting: {brightness}% (raw: {brightness_raw})")
+                except Exception as e:
+                    logging.warning(f"Could not read brightness file: {e}")
+                    brightness = 100
+
+            self.current_brightness = brightness
+            self.deck.set_brightness(brightness)
+        except Exception as e:
+            logging.error(f"Failed to reset device: {e}")
+            logging.error("")
+            logging.error("=" * 70)
+            logging.error("USB PERMISSIONS ERROR")
+            logging.error("=" * 70)
+            logging.error("")
+            logging.error("The Stream Deck device was found but cannot be accessed properly.")
+            logging.error("This is usually a USB permissions issue.")
+            logging.error("")
+            logging.error("To fix this, run the USB permissions setup script:")
+            logging.error(f"  cd {ACTIONS_DIR}")
+            logging.error("  ./setup-udev-rules.sh")
+            logging.error("")
+            logging.error("Then unplug and replug your Stream Deck, or run:")
+            logging.error("  sudo chmod 666 /dev/hidraw*")
+            logging.error("")
+            logging.error("=" * 70)
+            logging.error("")
+            if self.deck:
+                try:
+                    self.deck.close()
+                except Exception:
+                    pass
+            return False
         
         self.device_type, self.device_profile = self.get_device_profile(self.deck.deck_type())
         self.setup_touch_zones()
@@ -315,8 +368,109 @@ class StreamDeckDaemon:
             self.deck.set_touchscreen_callback(self.touchscreen_callback)
             logging.info("Touchscreen callbacks registered")
 
+        self.device_connected = True
         return True
-    
+
+    def is_device_connected(self):
+        """Check if the Stream Deck device is still connected"""
+        if not self.deck:
+            return False
+
+        try:
+            # Try to check if device is still responsive
+            if hasattr(self.deck, 'connected') and callable(self.deck.connected):
+                return self.deck.connected()
+            elif hasattr(self.deck, 'is_open') and callable(self.deck.is_open):
+                return self.deck.is_open()
+            # Fallback: assume connected if we have a deck object
+            return True
+        except Exception as e:
+            logging.debug(f"Device connection check failed: {e}")
+            return False
+
+    def check_device_presence(self):
+        """Actively check if any Stream Deck device is present via USB enumeration"""
+        try:
+            decks = DeviceManager().enumerate()
+            return len(decks) > 0
+        except Exception as e:
+            logging.debug(f"Device enumeration failed: {e}")
+            return False
+
+    def disconnect_device(self):
+        """Safely disconnect from the device"""
+        if self.deck:
+            try:
+                self.deck.reset()
+                self.deck.close()
+                logging.info("Device disconnected safely")
+            except Exception as e:
+                logging.debug(f"Error during disconnect: {e}")
+            finally:
+                self.deck = None
+                self.device_connected = False
+
+    def attempt_reconnect(self):
+        """Attempt to reconnect to the Stream Deck device"""
+        current_time = time.time()
+
+        # Rate limit reconnection attempts
+        if current_time - self.last_reconnect_attempt < self.reconnect_interval:
+            return False
+
+        self.last_reconnect_attempt = current_time
+
+        # Clean up existing connection
+        if self.deck:
+            self.disconnect_device()
+
+        logging.info("Attempting to reconnect to Stream Deck...")
+
+        try:
+            if self.connect_device():
+                logging.info("✓ Successfully reconnected to Stream Deck!")
+                # Reload displays after reconnection
+                self.update_all_buttons()
+                self.update_touchscreen()
+                return True
+            else:
+                logging.debug("Reconnection attempt failed - no device found")
+                return False
+        except Exception as e:
+            logging.debug(f"Reconnection attempt failed: {e}")
+            return False
+
+    def check_brightness_change(self):
+        """Check if brightness file has changed and apply new brightness"""
+        if not self.deck or not self.device_connected:
+            return
+
+        brightness_file = ACTIONS_DIR / '.brightness'
+
+        try:
+            if brightness_file.exists():
+                mtime = brightness_file.stat().st_mtime
+
+                # Check if file has been modified
+                if mtime != self.last_brightness_mtime:
+                    self.last_brightness_mtime = mtime
+
+                    try:
+                        brightness_hex = brightness_file.read_text().strip()
+                        # Convert hex value (0-FF) to 0-255, then to percentage (0-100)
+                        brightness_raw = int(brightness_hex, 16)
+                        brightness = round((brightness_raw / 255) * 100)
+
+                        # Only apply if brightness has actually changed
+                        if brightness != self.current_brightness:
+                            self.current_brightness = brightness
+                            self.deck.set_brightness(brightness)
+                            logging.info(f"✓ Brightness changed to {brightness}%")
+                    except Exception as e:
+                        logging.warning(f"Could not read brightness file: {e}")
+        except Exception as e:
+            logging.debug(f"Error checking brightness: {e}")
+
     def save_device_info(self):
         """Save detected device info for configurator to read"""
         if not self.deck:
@@ -514,22 +668,31 @@ class StreamDeckDaemon:
         """Update all button displays"""
         if not self.deck or not hasattr(self.deck, 'set_key_image'):
             return
-        
+
         if not self.device_profile or self.device_profile['buttons'] == 0:
             return
 
-        key_count = min(self.deck.key_count(), self.device_profile['buttons'])
-        for key in range(key_count):
-            button_num = key + 1
-            img = self.render_button(button_num)
+        try:
+            key_count = min(self.deck.key_count(), self.device_profile['buttons'])
+            for key in range(key_count):
+                button_num = key + 1
+                img = self.render_button(button_num)
 
-            buf = BytesIO()
-            img.save(buf, format='JPEG', quality=95)
+                buf = BytesIO()
+                img.save(buf, format='JPEG', quality=95)
 
-            try:
-                self.deck.set_key_image(key, buf.getvalue())
-            except Exception as e:
-                logging.error(f"Error setting button {button_num} image: {e}")
+                try:
+                    self.deck.set_key_image(key, buf.getvalue())
+                except Exception as e:
+                    logging.error(f"Error setting button {button_num} image: {e}")
+                    # Mark device as disconnected on communication error
+                    if self.device_connected and ("hid" in str(e).lower() or "device" in str(e).lower() or "usb" in str(e).lower()):
+                        logging.warning("USB communication error detected - device may be disconnected")
+                        self.device_connected = False
+                    raise
+        except Exception as e:
+            logging.error(f"Error updating buttons: {e}")
+            self.device_connected = False
 
     def button_callback(self, deck, key, state):
         """Handle button press/release"""
@@ -1062,6 +1225,10 @@ notify-send "Stream Deck" "{action_description}" -t 2000
             self.deck.set_touchscreen_image(buf.getvalue(), 0, 0, ts_width, ts_height)
         except Exception as e:
             logging.error(f"Error updating touchscreen: {e}")
+            # Mark device as disconnected on communication error
+            if self.device_connected and ("hid" in str(e).lower() or "device" in str(e).lower() or "usb" in str(e).lower()):
+                logging.warning("USB communication error detected - device may be disconnected")
+                self.device_connected = False
 
     def run(self):
         """Main run loop"""
@@ -1120,17 +1287,66 @@ notify-send "Stream Deck" "{action_description}" -t 2000
 
         try:
             while self.running:
-                # Check for file changes and reload displays if needed
-                if self.check_for_file_changes():
-                    self.reload_displays()
+                current_time = time.time()
 
-                time.sleep(0.1)
+                # Periodically check if device is still physically present
+                if current_time - self.last_device_check >= self.device_check_interval:
+                    self.last_device_check = current_time
+
+                    # Check if device is present via USB enumeration
+                    device_present = self.check_device_presence()
+
+                    # If we think we're connected but device is not present, mark as disconnected
+                    if self.device_connected and not device_present:
+                        logging.warning("⚠ Device unplugged - detected via USB enumeration")
+                        self.device_connected = False
+                        if self.deck:
+                            try:
+                                self.deck.close()
+                            except Exception:
+                                pass
+                            self.deck = None
+
+                    # If we think we're disconnected but device is present, try to reconnect
+                    if not self.device_connected and device_present:
+                        logging.info("✓ Device detected - attempting reconnection...")
+                        if self.attempt_reconnect():
+                            logging.info("✓ Successfully reconnected after replug!")
+
+                # Check if device is still connected
+                if not self.device_connected:
+                    # Device is disconnected, try to reconnect
+                    if self.attempt_reconnect():
+                        logging.info("✓ Device reconnected successfully!")
+                    else:
+                        # Wait before next iteration if reconnection failed
+                        time.sleep(1.0)
+                        continue
+
+                # Check for file changes and reload displays if needed
+                try:
+                    if self.check_for_file_changes():
+                        self.reload_displays()
+                except Exception as e:
+                    logging.error(f"Error checking file changes: {e}")
+                    # Don't mark as disconnected for file system errors
+
+                # Check for brightness changes
+                try:
+                    self.check_brightness_change()
+                except Exception as e:
+                    logging.error(f"Error checking brightness: {e}")
+
+                time.sleep(0.5)
         except KeyboardInterrupt:
             logging.info("\nShutting down...")
         finally:
             if self.deck:
-                self.deck.reset()
-                self.deck.close()
+                try:
+                    self.deck.reset()
+                    self.deck.close()
+                except Exception as e:
+                    logging.debug(f"Error during shutdown: {e}")
 
         return 0
 

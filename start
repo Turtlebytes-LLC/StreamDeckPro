@@ -14,4 +14,49 @@ if pgrep -f "streamdeck-daemon.py" > /dev/null; then
     exit 1
 fi
 
+# Clean up any running monitor processes from previous sessions
+echo "Checking for running monitor processes..."
+MONITOR_PIDS=$(pgrep -f "monitor.*\.sh|touch-[0-9]\.sh" 2>/dev/null)
+if [ -n "$MONITOR_PIDS" ]; then
+    echo "Found running monitor processes, cleaning up..."
+    pkill -9 -f "monitor.*\.sh" 2>/dev/null
+    pkill -9 -f "touch-[0-9]\.sh" 2>/dev/null
+    sleep 0.3
+    echo "Monitor processes terminated"
+fi
+
+# Clean up temporary files from previous monitor sessions
+echo "Cleaning up temporary files..."
+rm -f /tmp/streamdeck-*-monitor-*.pid 2>/dev/null
+rm -f /tmp/streamdeck-*-chart-*.pid 2>/dev/null
+rm -f /tmp/streamdeck-*-chart-data-*.txt 2>/dev/null
+rm -f /tmp/cpu_chart*.png 2>/dev/null
+echo "Cleanup complete"
+echo ""
+
+# Quick check for USB permissions issues
+if lsusb 2>/dev/null | grep -q "0fd9"; then
+    # Stream Deck is connected, check if we can access hidraw devices
+    if ! ls -l /dev/hidraw* 2>/dev/null | grep -q "rw-"; then
+        echo "⚠ Warning: Stream Deck detected but USB permissions may be an issue"
+        echo ""
+        echo "If the daemon fails to start, run:"
+        echo "  ./fix-permissions-now.sh"
+        echo ""
+    elif ! ls -l /dev/hidraw* 2>/dev/null | grep -q "plugdev\|dialout\|users"; then
+        echo "⚠ Note: USB permissions not optimal"
+        echo ""
+        echo "For permanent fix, run once:"
+        echo "  ./setup-udev-rules.sh"
+        echo ""
+    fi
+fi
+
+# Auto-start touch zone 3 CPU monitor
+if [ -f "$SCRIPT_DIR/touchscreen/touch-3.sh" ]; then
+    echo "Starting CPU monitor on touch zone 3..."
+    "$SCRIPT_DIR/touchscreen/touch-3.sh" > /dev/null 2>&1
+    sleep 0.5
+fi
+
 exec ./streamdeck-daemon.py "$@"

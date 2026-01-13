@@ -46,6 +46,13 @@ echo ""
 echo "Setting up systemd user service (optional)..."
 mkdir -p "$SYSTEMD_USER_DIR"
 
+# Detect current display and session variables
+CURRENT_DISPLAY="${DISPLAY:-:0}"
+CURRENT_WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
+CURRENT_XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+CURRENT_DBUS_SESSION="${DBUS_SESSION_BUS_ADDRESS:-}"
+CURRENT_XDG_RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
 cat > "$SYSTEMD_USER_DIR/streamdeck.service" << EOF
 [Unit]
 Description=Stream Deck Daemon
@@ -57,13 +64,26 @@ Type=simple
 ExecStart=$SCRIPT_DIR/streamdeck-daemon.py
 Restart=on-failure
 RestartSec=5
-Environment=DISPLAY=:0
+# Environment variables for desktop integration
+Environment=DISPLAY=$CURRENT_DISPLAY
+Environment=XAUTHORITY=$CURRENT_XAUTHORITY
+Environment=XDG_RUNTIME_DIR=$CURRENT_XDG_RUNTIME
+# Support for Wayland
+$([ -n "$CURRENT_WAYLAND_DISPLAY" ] && echo "Environment=WAYLAND_DISPLAY=$CURRENT_WAYLAND_DISPLAY" || echo "# No Wayland display detected")
+# DBus session for notifications and desktop integration
+$([ -n "$CURRENT_DBUS_SESSION" ] && echo "Environment=DBUS_SESSION_BUS_ADDRESS=$CURRENT_DBUS_SESSION" || echo "# DBus will be auto-detected")
 
 [Install]
 WantedBy=default.target
 EOF
 
 echo "✓ Created systemd service: $SYSTEMD_USER_DIR/streamdeck.service"
+echo ""
+echo "Environment variables configured:"
+echo "  DISPLAY: $CURRENT_DISPLAY"
+[ -n "$CURRENT_WAYLAND_DISPLAY" ] && echo "  WAYLAND_DISPLAY: $CURRENT_WAYLAND_DISPLAY"
+echo "  XDG_RUNTIME_DIR: $CURRENT_XDG_RUNTIME"
+[ -n "$CURRENT_DBUS_SESSION" ] && echo "  DBUS_SESSION_BUS_ADDRESS: (detected)"
 echo ""
 
 # Enable systemd service
@@ -76,12 +96,20 @@ echo "=========================================="
 echo ""
 echo "Two methods have been configured:"
 echo "  1. Desktop autostart entry (primary)"
-echo "  2. systemd user service (backup)"
+echo "  2. systemd user service (backup, with proper environment)"
 echo ""
 echo "The Stream Deck daemon will now start automatically on login."
 echo ""
+echo "Features:"
+echo "  ✓ Automatic reconnection on KVM switch or USB disconnect"
+echo "  ✓ Proper environment variables for notifications and desktop integration"
+echo "  ✓ Auto-restart on failure"
+echo ""
 echo "To verify systemd service:"
 echo "  systemctl --user status streamdeck.service"
+echo ""
+echo "To start immediately:"
+echo "  systemctl --user start streamdeck.service"
 echo ""
 echo "To disable auto-start, run:"
 echo "  $SCRIPT_DIR/remove-autostart.sh"

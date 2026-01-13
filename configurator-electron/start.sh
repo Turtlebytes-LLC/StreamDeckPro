@@ -1,5 +1,5 @@
 #!/bin/bash
-# Launcher for Stream Deck Electron Configurator
+# Launcher for Stream Deck Electron Configurator - Official Style UI
 
 cd "$(dirname "$0")"
 
@@ -13,13 +13,5 @@ if [ ! -d "node_modules" ]; then
     fi
 fi
 
-echo "Building application..."
-npm run build
-
-if [ $? -ne 0 ]; then
-    echo "Build failed. Please check the errors above."
-    exit 1
-fi
-
-echo "Starting Stream Deck Configurator..."
+echo "Starting Stream Deck Configurator (Official Style UI)..."
 npm start -- --no-sandbox

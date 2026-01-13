@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Deck Configurator</title>
+  <!-- Tailwind CSS CDN for quick development -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- CodeMirror for code editing -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+  <link rel="stylesheet" href="src/styles-v2.css">
+</head>
+<body class="bg-[#2b2b2b] text-white h-screen flex flex-col overflow-hidden select-none">
+
+  <!-- Header -->
+  <header class="bg-[#1e1e1e] px-4 py-2 flex items-center justify-between border-b border-[#3a3a3a]">
+    <div class="flex items-center gap-3">
+      <div class="text-sm font-medium">StreamDeck</div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="settings-btn" class="px-3 py-1.5 hover:bg-[#3a3a3a] rounded text-sm transition-colors">
+        Settings
+      </button>
+      <button id="close-btn" class="px-3 py-1.5 hover:bg-red-600 rounded text-sm transition-colors">
+        ✕
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Left Panel - Stream Deck Preview -->
+    <div class="w-1/2 bg-[#2b2b2b] p-8 flex flex-col">
+      <!-- Device Header -->
+      <div class="text-center mb-6">
+        <div id="deck-type-indicator" class="text-lg font-semibold text-white mb-1">Stream Deck Plus</div>
+        <div class="text-xs text-gray-500">Click any button, dial, or touch zone to configure</div>
+      </div>
+
+      <!-- Stream Deck Visual Preview -->
+      <div class="flex-1 flex items-center justify-center min-h-0">
+        <div id="deck-preview" class="relative">
+          <!-- This will be populated with the actual deck layout -->
+
+          <!-- Buttons Grid (for Plus: 2 rows × 4 cols) -->
+          <div id="buttons-grid" class="grid grid-cols-4 gap-3 mb-8 justify-items-center" style="padding-left: 26px;">
+            <!-- Buttons will be added dynamically -->
+          </div>
+
+          <!-- Touchscreen (for Plus) -->
+          <div id="touchscreen-preview" class="grid grid-cols-4 gap-3 mb-8 justify-items-center" style="padding-left: 26px;">
+            <!-- Touchscreen will be added dynamically -->
+          </div>
+
+          <!-- Dials (for Plus: 4 dials) -->
+          <div id="dials-grid" class="grid grid-cols-4 gap-3 mt-4 justify-items-center" style="padding-left: 26px;">
+            <!-- Dials will be added dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Pills -->
+      <div class="mt-6">
+        <div class="text-xs text-gray-500 mb-2 font-medium">Categories</div>
+        <div id="categories" class="flex gap-2 overflow-x-auto pb-2">
+          <!-- Categories will be added dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel - Configuration -->
+    <div class="w-1/2 bg-[#1e1e1e] border-l border-[#3a3a3a] flex flex-col">
+
+      <!-- Device Selector -->
+      <div class="p-5 border-b border-[#3a3a3a]">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Device</label>
+        <select id="device-selector" class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
+          <option>Stream Deck Plus</option>
+        </select>
+      </div>
+
+      <!-- Profile Selector -->
+      <div class="px-5 py-4 border-b border-[#3a3a3a]">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Profile</label>
+        <select id="profile-selector" class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
+          <option>Default</option>
+        </select>
+      </div>
+
+      <!-- Search Actions -->
+      <div class="px-5 py-4 border-b border-[#3a3a3a]">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Find Actions</label>
+        <input
+          type="text"
+          id="action-search"
+          placeholder="Search available actions..."
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        >
+      </div>
+
+      <!-- Actions List -->
+      <div class="flex-1 overflow-y-auto" id="actions-list">
+        <!-- Actions will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Selected Element Panel (shows when clicking a button/dial/touch zone) -->
+  <div id="element-panel" class="hidden absolute right-0 top-0 bottom-0 w-96 bg-[#1e1e1e] border-l-2 border-[#3a3a3a] shadow-2xl z-50">
+    <div class="p-5 border-b border-[#3a3a3a] flex items-center justify-between bg-[#252525]">
+      <h3 id="element-title" class="text-lg font-semibold">Button 1</h3>
+      <button id="close-element-panel" class="hover:bg-[#3a3a3a] rounded-lg p-2 transition-colors text-gray-400 hover:text-white">✕</button>
+    </div>
+
+    <div class="p-5 space-y-6 overflow-y-auto" style="max-height: calc(100vh - 70px)">
+      <!-- Image Section -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Display Image</label>
+        <div id="element-image-preview" class="w-full aspect-square bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] flex items-center justify-center mb-3 overflow-hidden">
+          <span class="text-5xl">🎛️</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="browse-image-btn" class="bg-blue-600 hover:bg-blue-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Browse
+          </button>
+          <button id="icon-library-btn" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Icons
+          </button>
+          <button id="clear-image-btn" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Action/Script Section -->
+      <div class="pt-4 border-t border-[#3a3a3a]">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Action Script</label>
+        <input
+          type="text"
+          id="element-script"
+          readonly
+          placeholder="No script assigned"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+        >
+        <div class="grid grid-cols-3 gap-2">
+          <button id="browse-script-btn" class="bg-blue-600 hover:bg-blue-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Browse
+          </button>
+          <button id="edit-script-btn" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Edit
+          </button>
+          <button id="clear-script-btn" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Label Customization -->
+      <div class="pt-4 border-t border-[#3a3a3a]">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Text</label>
+        <input
+          type="text"
+          id="element-label"
+          placeholder="Optional label text"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        >
+      </div>
+
+      <!-- Font Size -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Font Size</label>
+        <input
+          type="number"
+          id="element-fontsize"
+          value="24"
+          min="10"
+          max="60"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        >
+      </div>
+
+      <!-- Label Position -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Position</label>
+        <select id="element-position" class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
+          <option value="top">Top</option>
+          <option value="middle">Middle</option>
+          <option value="bottom">Bottom</option>
+        </select>
+      </div>
+
+      <!-- Save Button -->
+      <button id="save-element-btn" class="w-full bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors shadow-lg">
+        Save Changes
+      </button>
+    </div>
+  </div>
+
+  <!-- Icon Library Modal -->
+  <div id="icon-library-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#1e1e1e] rounded-lg shadow-2xl w-[800px] max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#3a3a3a] flex items-center justify-between">
+        <h3 class="font-semibold">Icon Library</h3>
+        <button id="close-icon-library" class="hover:bg-[#3a3a3a] rounded p-1">✕</button>
+      </div>
+      <div class="p-4 border-b border-[#3a3a3a] space-y-3">
+        <div>
+          <div class="text-xs text-gray-400 mb-2">Category:</div>
+          <div id="icon-filters" class="flex gap-2 flex-wrap">
+            <!-- Category filters will be added here -->
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 mb-2">Color:</div>
+          <div id="icon-color-filters" class="flex gap-2 flex-wrap">
+            <!-- Color filters will be added here -->
+          </div>
+        </div>
+      </div>
+      <div class="p-4 overflow-y-auto flex-1">
+        <div id="icon-grid" class="grid grid-cols-6 gap-3">
+          <!-- Icons will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Parameters Modal -->
+  <div id="script-params-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#1e1e1e] rounded-lg shadow-2xl w-[500px] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#3a3a3a] flex items-center justify-between">
+        <h3 class="font-semibold" id="params-title">Configure Script</h3>
+        <button id="close-params" class="hover:bg-[#3a3a3a] rounded p-1">✕</button>
+      </div>
+      <div class="p-4 space-y-4">
+        <div id="params-container">
+          <!-- Parameters will be added dynamically -->
+        </div>
+      </div>
+      <div class="p-4 border-t border-[#3a3a3a] flex gap-2 justify-end">
+        <button id="cancel-params-btn" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-4 py-2 rounded text-sm transition-colors border border-[#3a3a3a]">
+          Cancel
+        </button>
+        <button id="save-params-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm font-medium transition-colors">
+          Apply
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code Editor Modal -->
+  <div id="code-editor-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#1e1e1e] rounded-lg shadow-2xl w-[90vw] h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#3a3a3a] flex items-center justify-between">
+        <h3 class="font-semibold" id="editor-title">Edit Script</h3>
+        <button id="close-editor" class="hover:bg-[#3a3a3a] rounded p-1">✕</button>
+      </div>
+      <div class="flex-1 overflow-hidden">
+        <textarea id="code-editor-textarea" class="w-full h-full"></textarea>
+      </div>
+      <div class="p-4 border-t border-[#3a3a3a] flex gap-2 justify-end">
+        <button id="cancel-editor-btn" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-4 py-2 rounded text-sm transition-colors border border-[#3a3a3a]">
+          Cancel
+        </button>
+        <button id="save-editor-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm font-medium transition-colors">
+          Save Script
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#1e1e1e] rounded-lg shadow-2xl w-[600px] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#3a3a3a] flex items-center justify-between">
+        <h3 class="font-semibold">Settings</h3>
+        <button id="close-settings" class="hover:bg-[#3a3a3a] rounded p-1">✕</button>
+      </div>
+
+      <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+        <!-- Autostart -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-medium">Start on System Boot</div>
+            <div class="text-sm text-gray-400">Automatically start the Stream Deck daemon when you log in</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="autostart-toggle" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <!-- Brightness -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-medium">Brightness</div>
+            <div id="brightness-value" class="text-sm text-gray-400">75%</div>
+          </div>
+          <input type="range" id="brightness-slider" min="0" max="100" value="75"
+                 class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600">
+          <div class="text-xs text-gray-400 mt-1">Adjust the brightness of your Stream Deck display</div>
+        </div>
+
+        <!-- Restart Daemon -->
+        <div>
+          <div class="font-medium mb-2">Daemon Control</div>
+          <button id="restart-daemon-btn" class="w-full bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-sm font-medium transition-colors">
+            Restart Stream Deck Daemon
+          </button>
+          <div class="text-xs text-gray-400 mt-1">Restart the background service (use if buttons stop responding)</div>
+        </div>
+
+        <!-- About -->
+        <div class="pt-4 border-t border-[#3a3a3a]">
+          <div class="font-medium mb-2">About</div>
+          <div class="text-sm text-gray-400 space-y-1">
+            <div>Stream Deck Configurator v2.0</div>
+            <div>Linux Stream Deck Control System</div>
+            <div class="pt-2">
+              <a href="#" id="view-logs" class="text-blue-400 hover:text-blue-300">View Daemon Logs</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-[#3a3a3a] flex justify-end">
+        <button id="close-settings-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Preview Modal -->
+  <div id="script-preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#1e1e1e] rounded-lg shadow-2xl w-[90vw] h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#3a3a3a] flex items-center justify-between">
+        <h3 class="font-semibold" id="script-preview-title">Script Preview</h3>
+        <button id="close-script-preview" class="hover:bg-[#3a3a3a] rounded p-1">✕</button>
+      </div>
+      <div class="flex-1 overflow-hidden p-4">
+        <pre id="script-preview-content" class="w-full h-full bg-[#2b2b2b] rounded-lg p-4 overflow-auto text-sm font-mono text-gray-300"></pre>
+      </div>
+      <div class="p-4 border-t border-[#3a3a3a] flex justify-end">
+        <button id="close-script-preview-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+  <script src="src/renderer-v2.js"></script>
+</body>
+</html>

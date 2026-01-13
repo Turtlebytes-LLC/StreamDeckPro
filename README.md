@@ -7,7 +7,18 @@
 
 ## 🎉 What's New - January 2026
 
-**Major reliability improvements!**
+**Complete Configurator v2 Redesign!**
+
+- 🎨 **Official Stream Deck Style UI** - Beautiful dark theme matching the official software
+- 🖼️ **Icon Library with 2000+ Icons** - Browse by category and color with instant preview
+- 👀 **Script Preview** - View any script before assigning it with syntax highlighting
+- ⚡ **Instant Brightness Control** - Adjust brightness without restarting daemon
+- ⚙️ **Settings Panel** - One place for autostart, brightness, and daemon controls
+- 🎛️ **Dial Macro Stepper** - Record macros and step through them keystroke-by-keystroke
+- 📊 **Live System Monitoring** - Real-time CPU charts on touch zones
+- ✨ **Polished UI** - Smooth animations, gradients, and professional design
+
+**Reliability Improvements:**
 
 - ✅ **Auto-reconnects on KVM switch** - No more manual restarts!
 - ✅ **USB re-plug detection** - Unplug/replug works automatically
@@ -16,21 +27,27 @@
 - ✅ **Optimized performance** - 80% reduction in overhead
 - ✅ **One-click USB permissions setup** - Automated configuration
 
-**[→ Test all improvements](TESTING.md)** | **[→ See detailed changes](docs/FIXES-APPLIED.md)** | **[→ What was accomplished](docs/TODAYS-ACCOMPLISHMENTS.md)**
+**[→ Launch new UI](configurator-electron/SETUP-CONFIGURATOR.md)** | **[→ Test improvements](TESTING.md)** | **[→ See all changes](docs/FIXES-APPLIED.md)**
 
 ## ✨ Features
 
+### Configurator v2
+- **🎨 Official-Style Interface** - Dark theme matching Elgato's official software
+- **🖼️ Icon Library** - 2000+ icons with category and color filters
+- **👀 Script Preview** - View any script contents before assigning
+- **⚡ Live Brightness** - Adjust Stream Deck brightness instantly
+- **⚙️ Settings Panel** - Autostart, brightness, daemon controls in one place
+- **📊 System Monitoring** - Live CPU charts with sparklines
+- **✨ Beautiful Animations** - Smooth transitions and hover effects
+
+### Actions & Automation
 - **50 Customizable Actions** - 8 LCD buttons, 16 dial actions (4 dials × 4 gestures), 24 touchscreen gestures, 2 long swipes
-- **Beautiful GUI Configurator** - Point-and-click interface to assign scripts, images, and labels
-- **128 Ready-to-Use Examples** - 50 general actions + 78 developer-focused scripts
-- **Macro Recorder** - Record keyboard shortcuts and complex key sequences
+- **135+ Ready-to-Use Scripts** - General actions, developer tools, and system utilities
+- **Dial Macro Stepper** - Record macros and step through them keystroke-by-keystroke
 - **Custom Images & Labels** - Personalize every button and touchscreen zone
 - **Hot-Reload Support** - Changes take effect immediately without restarting
-- **Complete Logging** - Track every action and debug easily
+- **Complete Logging** - Track every action with journalctl integration
 - **Zero Configuration** - No JSON, no complex setup - just bash scripts!
-
-![Stream Deck Plus in Action](images/working-streamdeck.jpg)
-*Your Stream Deck Plus with fully customized buttons, dials, and touchscreen zones*
 
 ## 🚀 Quick Start
 
@@ -38,7 +55,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/streamdeck-actions.git
+git clone https://github.com/Turtlebytes-LLC/StreamDeckPro.git
 cd streamdeck-actions
 
 # Install Python dependencies
@@ -51,32 +68,20 @@ chmod +x start configure create-action streamdeck-daemon.py
 ./start
 ```
 
-### Launch Configuration UI
+### Launch Configurator v2
 
 ```bash
 ./configure
 ```
 
-The GUI lets you:
-- Browse and select from 128 example scripts
-- Assign custom images to buttons and touchscreen zones
-- Add text labels
-- Record keyboard macros
-- See what's currently configured
-- Enable/disable auto-start on login with one click
-- Export/import your entire configuration
-
-#### Configure Your Buttons
-![Button Configuration](images/configure-buttons.png?1)
-*Easily assign scripts, images, and labels to your 8 LCD buttons*
-
-#### Configure Your Dials
-![Dial Configuration](images/configure-dials.png)
-*Set up clockwise, counter-clockwise, press, and long-press actions for each dial*
-
-#### Configure Your Touchscreen
-![Touchscreen Configuration](images/configure-touch.png)
-*Customize tap, long press, and swipe gestures for all 4 touchscreen zones*
+**The new configurator offers:**
+- 🎯 Visual Stream Deck preview with buttons, dials, and touchscreen
+- 📜 Browse 135+ example scripts with instant preview
+- 🖼️ Icon library with 2000+ icons, filterable by category and color
+- ⚙️ Settings panel for brightness, autostart, and daemon control
+- 🎛️ Dial macro stepper for advanced keyboard automation
+- 📊 Live system monitoring (CPU, RAM, disk)
+- ✨ Beautiful, responsive interface with smooth animations
 
 ## 📋 Supported Gestures
 
@@ -100,15 +105,16 @@ The GUI lets you:
 
 **Total: 50 customizable actions!**
 
-## 📚 Example Scripts Included
+## 📚 Example Scripts Included (135+)
 
-### General Actions (50 scripts)
-- **Volume & Media Control** (8) - Volume up/down/mute, play/pause, next/previous track
-- **Window Management** (9) - Maximize, minimize, tile, switch workspaces
+### General Actions (57 scripts)
+- **Volume & Media Control** (8) - Volume up/down/mute, play/pause, next/previous track, mic toggle
+- **Window Management** (12) - Maximize, minimize, tile left/right, show desktop, switch workspaces
 - **Screenshots** (4) - Full screen, area, window capture
 - **Flameshot Screenshots** (8) - GUI, clipboard, delay, pin, custom save
 - **System Actions** (5) - Lock, logout, suspend, brightness
-- **Applications** (3) - Browser, terminal, file manager
+- **Applications** (4) - Browser, terminal, file manager, quick notes
+- **System Info** (3) - CPU/RAM/disk display, system notifications
 - **Keyboard Automation** (13) - Common shortcuts and text snippets
 
 ### Developer Actions (78 scripts)
@@ -122,6 +128,12 @@ The GUI lets you:
 - **NPM/Docker/Python** (9) - Common development commands
 - **Build Tools** (2) - Make, build commands
 - **Terminal** (3) - Clear, navigate, list files
+- **Macro System** (4) - Dial macro stepper, recorder, player, controller
+
+### Power User Actions
+- **Dial Macro Stepper** - Record keyboard macros and step through keystroke-by-keystroke
+- **System Monitoring** - Live CPU/RAM/disk charts on touch zones
+- **Custom Workflows** - Chain multiple scripts together
 
 ## 🎨 Customization
 
@@ -157,27 +169,27 @@ streamdeck-actions/
 
 ### Creating Custom Actions
 
-**Using the GUI (Recommended):**
-1. Run `./configure`
-2. Click "Browse" or "Examples" for the action you want
-3. Select a script
-4. Optionally add an image and label
-5. Done! Changes take effect immediately
-
-![Button Scripts Example](images/button-scripts.png?1)
-*Browse through example scripts or create your own custom actions*
+**Using Configurator v2 (Recommended):**
+1. Run `./configure` to launch the configurator
+2. Click any button, dial, or touch zone to select it
+3. Browse example scripts in the actions list or click "Browse" to select your own
+4. Click "View" to preview any script before assigning
+5. Add an icon from the 2000+ icon library with category and color filters
+6. Optionally add a label and customize font size/position
+7. Click "Save Changes" - updates apply instantly!
 
 **Manual Method:**
-1. Create a bash script in the appropriate directory
+1. Create a bash script in the appropriate directory (`buttons/`, `dials/`, `touchscreen/`)
 2. Make it executable: `chmod +x your-script.sh`
 3. Optionally add images (.png/.jpg) and labels (.txt)
-4. The daemon automatically detects changes
+4. The daemon automatically detects changes (hot-reload)
 
-**Example Script:**
+**Example Custom Script:**
 ```bash
 #!/bin/bash
-# Launch VS Code
-code
+# Launch VS Code in current project
+cd ~/Projects/my-project
+code .
 ```
 
 ## 🎯 Use Cases
@@ -205,112 +217,173 @@ code
 
 ## 🔧 Advanced Features
 
-### One-Click Auto-Start
-Enable or disable auto-start on login with a single button click in the configuration UI! The system uses both desktop autostart entries and systemd services for maximum compatibility.
+### 🎨 Configurator v2 - Professional Interface
 
-To customize for your system, edit:
-- `setup-autostart.sh` - Enable auto-start
-- `remove-autostart.sh` - Disable auto-start
+The completely redesigned configurator brings a polished, professional experience:
 
-### 🎬 Intelligent Macro System - The Game Changer
+**Visual Design:**
+- Official Stream Deck style dark theme
+- Smooth animations and transitions
+- Gradient effects on buttons, dials, and touch zones
+- Live preview of your Stream Deck layout
 
-**Record. Replay. Step Through. Undo. All with a single dial.**
+**Icon Library:**
+- 2000+ professional icons
+- Filter by category (apps, dev, media, system, utils, etc.)
+- Filter by color (blue, red, green, cyan, and more)
+- Instant preview before applying
 
-The macro system transforms Dial 1 into a powerful macro recorder that goes beyond simple playback:
+**Script Management:**
+- View any script contents with the "View" button
+- Syntax-highlighted preview in readonly modal
+- Browse 135+ example scripts
+- Organize by categories
+
+**Settings Panel:**
+- Toggle autostart with one click
+- Adjust brightness with live preview (no daemon restart needed)
+- Restart daemon when needed
+- View daemon logs with one click
+
+### ⚡ Instant Brightness Control
+
+Adjust your Stream Deck's brightness in real-time without restarting the daemon! The configurator includes a smooth slider that updates brightness instantly through file monitoring.
+
+### 🎬 Dial Macro Stepper - The Game Changer
+
+**Record. Replay. Step Through. One keystroke at a time.**
+
+The dial macro stepper is a sophisticated keyboard automation system:
 
 #### What Makes It Special
 
-✨ **Full Keyboard Capture**
-- Every keystroke recorded: letters, numbers, symbols, arrows, modifiers
-- Key combinations captured perfectly: Ctrl+C, Shift+Arrow selections, multi-key shortcuts
-- Navigation keys: Home, End, Page Up/Down, arrows - everything works
+✨ **Full Keyboard Capture with Suppression**
+- Records every keystroke including system shortcuts (Ctrl+Alt+T, etc.)
+- Suppresses keystrokes during recording so they don't trigger
+- Real-time display shows each key as it's recorded
+- Perfect for complex workflows with modifiers and navigation
 
-🎯 **Intelligent Reverse Playback**
-Unlike traditional macro tools that just use Ctrl+Z, our system intelligently reverses each action:
-- Characters → Backspace removes them
-- Arrow keys → Opposite direction (Left becomes Right)
-- Home/End → Swap (Home becomes End)
-- Modifier combos → Smart Ctrl+Z when needed
+🎯 **Step-Through Playback**
+- **Turn dial right**: Execute next keystroke
+- **Turn dial left**: Undo previous keystroke (intelligent reverse)
+- **Press dial**: Play entire macro at once
+- **Hold dial**: Clear macro and start fresh
+- State persistence tracks your position through the macro
 
-⚡ **Step-Through Control**
-- **Turn right**: Execute next command in macro
-- **Turn left**: Intelligently undo last command
-- **Press**: Full macro playback
-- **Long press**: Clear macro and start fresh
-- **Auto-reset**: Position resets after 3 seconds of inactivity
+⚡ **Smart Recording Workflow**
+- First press on empty macro → Opens recorder terminal
+- Subsequent press → Plays the recorded macro
+- Terminal shows real-time feedback during recording
+- Cross-platform terminal detection (konsole, gnome-terminal, xterm, etc.)
 
-🔔 **Real-Time Feedback**
-- Visual notifications show current position (e.g., "Step 5/13")
-- Single updating notification (no spam!)
-- See exactly which key you're at in the sequence
+🔔 **Visual Position Tracking**
+- Know exactly which step you're on
+- Step forward/backward through complex macros
+- Undo individual keystrokes by turning left
+- Auto-reset after completion
 
 #### How to Use
 
 1. **Record a macro**:
-   - Press Dial 1 → Recording starts
-   - Type your workflow (shortcuts, text, navigation - anything!)
-   - Press Dial 1 again → Recording stops
+   - Press the dial → Terminal opens for recording
+   - Type your workflow - all keystrokes captured and suppressed
+   - Press ESC → Recording stops and saves
 
 2. **Replay the macro**:
-   - Press Dial 1 → Full playback
-   - Turn right → Step forward one command at a time
-   - Turn left → Step backward, intelligently undoing each action
+   - Press dial → Full playback
+   - Turn right → Execute next keystroke
+   - Turn left → Undo previous keystroke
 
-3. **Clear and start over**:
-   - Long press Dial 1 → Macro cleared
+3. **Clear and record new**:
+   - Hold dial → Clears macro, next press will re-open recorder
 
 #### Real-World Example
 
-Record this workflow once, replay it a thousand times:
+Record opening a terminal and running commands:
 ```
-Type: "this is my code"
-Shift+Left (4 times) → highlight "code"
-Ctrl+C → copy
-End → jump to end of line
-Ctrl+V → paste
-Enter → new line
+Ctrl+Alt+T → Opens terminal
+cd ~/Projects → Navigate to folder
+git status → Check repo status
 ```
 
-Then step through it command-by-command by turning the dial, or undo actions by turning backward. It's like having a time machine for your keyboard!
+Then step through it one command at a time, or play it all at once!
 
 #### Technical Details
 
-See the complete implementation in `examples/dev/`:
-- `dial-1-press.sh` - Recording & playback engine
-- `dial-1-cw.sh` - Step forward through macro
-- `dial-1-ccw.sh` - Intelligent reverse playback
-- `dial-1-longpress.sh` - Clear macro
+Implementation files in `examples/dev-actions/`:
+- `dial-macro-stepper.sh` - Main controller script
+- `utils/macro-recorder.py` - Records with pynput (suppression enabled)
+- `utils/macro-player.py` - Plays back with xdotool
+- `utils/dial-macro-controller.py` - Step-through state management
 
-Built with xinput for real-time keyboard monitoring and xdotool for precise playback.
+Uses pynput for keystroke capture with suppression, xdotool for reliable system shortcut playback.
 
-### Icon Selector with Categories & Colors
-Browse 4900+ free MIT-licensed icons from Tabler Icons with smart category filtering:
-- **7 curated categories**: utils (~140), apps (~278), media (~239), dev (~214), system (~167), creative (~90), brand (~370)
-- **Download only what you need** instead of all 4900+ icons
-- **Outline or filled styles**: Choose your preferred icon style with clear naming
-- **Predefined colors**: blue, red, green, orange, purple, pink, teal, and more
-- **Custom hex colors**: `#FF5722` or any hex color
-- **Colored icons on black backgrounds**: Icons appear in your chosen color, not white
-- Clear naming: outline icons use `-o` suffix (`heart-red-o.png`), filled icons don't (`heart-red.png`)
-- Search and preview in the UI
+### 📊 Live System Monitoring
 
-### Drag-and-Drop
-Drag scripts and images directly onto buttons in the UI! Visual feedback shows where files will be placed.
+Display real-time system metrics directly on your Stream Deck touchscreen!
 
-### Hot-Reload
-Changes to scripts, images, and labels are detected automatically. No need to restart the daemon!
+**CPU Monitoring:**
+- Live CPU usage chart with sparkline visualization
+- Updates every 0.5 seconds
+- Percentage display with color coding (blue/yellow/red based on load)
+- Auto-starts with daemon
+- Runs in background without affecting performance
 
-### Export/Import
-Backup and restore your entire configuration (scripts, images, labels) as a single .tar.gz file.
+**How to Use:**
+Assign `monitor-cpu-chart.sh` to any touch zone for instant CPU visualization. The chart automatically updates and persists across daemon restarts.
 
-### Logging
-Every action is logged with timestamps:
+**Technical Implementation:**
+- ImageMagick for dynamic chart generation
+- Automatic cleanup of old monitor processes
+- State persistence in `/tmp`
+- Color-coded based on CPU load
+
+### 🖼️ Icon Library - 2000+ Professional Icons
+
+The configurator includes a comprehensive icon library with smart filtering:
+
+**Filtering System:**
+- **Category filters**: All Actions, Media, Window, System, Apps, Developer
+- **Color filters**: All, Blue, Red, Green, Cyan, and more
+- **Combined filtering**: Select both category and color for precise results
+- **Live preview**: See icons before applying them
+
+**Icon Organization:**
+- Nested directory structure: `icons/category/color/icon.png`
+- Automatic icon detection and loading
+- Support for PNG, JPG, and SVG formats
+- Fast recursive directory scanning
+
+**Usage:**
+1. Click the "Icons" button when configuring any element
+2. Filter by category and/or color
+3. Click any icon to apply it instantly
+4. Changes take effect immediately
+
+### ⚡ Hot-Reload & Live Updates
+
+Changes to scripts, images, and labels are detected automatically:
+- 0.5-second file polling interval
+- No daemon restart needed
+- Instant visual updates on Stream Deck
+- Brightness changes apply immediately
+
+### 🔍 Script Preview
+
+Before assigning any script, view its contents:
+- Click "View" on any action in the list
+- Readonly modal with syntax highlighting
+- See exactly what the script does
+- Close with ESC or click outside
+
+### 📝 Comprehensive Logging
+
+Track every action with systemd journal integration:
 ```bash
-tail -f daemon.log
+journalctl --user -u streamdeck -f
 ```
 
-### Window Geometry Persistence
-The configuration UI remembers its size and position between sessions.
+Or view logs directly from the configurator's Settings panel with one click.
 
 ## 📖 Documentation
 
@@ -411,8 +484,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-- Issues: [GitHub Issues](https://github.com/YOUR_USERNAME/streamdeck-actions/issues)
-- Discussions: [GitHub Discussions](https://github.com/YOUR_USERNAME/streamdeck-actions/discussions)
+- Issues: [GitHub Issues](https://github.com/Turtlebytes-LLC/StreamDeckPro/issues)
+- Discussions: [GitHub Discussions](https://github.com/Turtlebytes-LLC/StreamDeckPro/discussions)
 
 ---
 

@@ -16,41 +16,50 @@ const ICONS_DIR = path.join(STREAMDECK_DIR, 'icons');
 
 let mainWindow;
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    },
-    backgroundColor: '#2b2b2b'  // Dark theme background
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.show();
+    }
   });
 
-  // Remove menu bar
-  mainWindow.setMenu(null);
+  function createWindow() {
+    mainWindow = new BrowserWindow({
+      width: 1400,
+      height: 900,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      },
+      backgroundColor: '#2b2b2b',
+      title: 'Stream Deck Configurator'
+    });
 
-  // Load the new official-style UI
-  mainWindow.loadFile('index-v2.html');
+    mainWindow.setMenu(null);
+    mainWindow.loadFile('index-v2.html');
+  }
 
-  // Open dev tools for debugging (optional)
-  // mainWindow.webContents.openDevTools();
+  app.whenReady().then(createWindow);
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 }
-
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
 
 // IPC Handlers
 

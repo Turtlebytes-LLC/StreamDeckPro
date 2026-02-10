@@ -1,9 +1,14 @@
 #!/bin/bash
-# Launcher for Stream Deck Electron Configurator - Official Style UI
 
-cd "$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Check if node_modules exists
+# Activate mise if available
+if command -v mise &> /dev/null; then
+    eval "$(mise activate bash)"
+fi
+
+# Check dependencies
 if [ ! -d "node_modules" ]; then
     echo "Dependencies not installed. Running setup..."
     ./setup.sh

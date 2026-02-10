@@ -10,6 +10,12 @@
   .dark body,
   body.dark {
     @apply bg-deck-bg-dark text-gray-100;
+    background: #0d0d0d;
+  }
+  
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -20,7 +26,12 @@
   }
 
   .dark .card {
-    @apply bg-deck-card-dark border-deck-border-dark shadow-card-dark;
+    @apply bg-deck-card-dark border-deck-border-dark shadow-elgato;
+    background: linear-gradient(145deg, #1a1a1a 0%, #141414 100%);
+  }
+  
+  .dark .card:hover {
+    @apply shadow-elgato-hover;
   }
 
   .card-header {
@@ -51,8 +62,13 @@
   }
 
   .btn-primary {
-    @apply btn bg-deck-primary hover:bg-deck-primary-hover text-white
-           focus:ring-deck-primary;
+    @apply btn text-white focus:ring-deck-primary;
+    background: linear-gradient(135deg, #0e7afe 0%, #0a5fd1 100%);
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #0a5fd1 0%, #0855b8 100%);
+    @apply shadow-glow-blue;
   }
 
   .btn-success {
@@ -133,7 +149,12 @@
 
   .action-row {
     @apply flex items-center gap-3 py-3 px-3 -mx-3 rounded-lg
-           transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50;
+           transition-all duration-200 hover:bg-gray-50;
+  }
+  
+  .dark .action-row:hover {
+    background: linear-gradient(90deg, rgba(14, 122, 254, 0.05) 0%, transparent 100%);
+    transform: translateX(2px);
   }
 
   .action-label {
@@ -180,10 +201,19 @@
   }
 
   .icon-item {
-    @apply aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg 
-           hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200
-           flex items-center justify-center border-2 border-transparent
-           hover:border-deck-primary hover:shadow-glow-blue hover:scale-105;
+    @apply aspect-square bg-gray-100 rounded-lg cursor-pointer transition-all duration-200
+           flex items-center justify-center border-2 border-transparent p-2
+           hover:border-deck-primary hover:shadow-glow-blue hover:scale-105 hover:bg-gray-200;
+  }
+  
+  .dark .icon-item {
+    background: linear-gradient(145deg, #1e1e1e 0%, #161616 100%);
+    border-color: #2a2a2a;
+  }
+  
+  .dark .icon-item:hover {
+    background: linear-gradient(145deg, #252525 0%, #1e1e1e 100%);
+    border-color: #0e7afe;
   }
 
   .icon-item-selected {
@@ -242,21 +272,59 @@
   }
 
   .preview-button {
-    @apply w-16 h-16 rounded-lg bg-gray-800 border-2 border-gray-600 
-           flex items-center justify-center overflow-hidden transition-all duration-200
-           hover:border-deck-primary hover:shadow-glow-blue cursor-pointer;
+    @apply w-20 h-20 rounded-xl flex items-center justify-center overflow-hidden 
+           transition-all duration-200 cursor-pointer border-2;
+    background: linear-gradient(145deg, #1e1e1e 0%, #161616 100%);
+    border-color: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05);
+  }
+  
+  .preview-button:hover {
+    @apply shadow-elgato-hover;
+    border-color: #0e7afe;
+    transform: translateY(-2px) scale(1.02);
+  }
+  
+  .preview-button.configured {
+    @apply shadow-elgato-active;
+    border-color: #0e7afe;
   }
 
   .preview-dial {
-    @apply w-14 h-14 rounded-full bg-gray-700 border-4 border-gray-600
-           flex items-center justify-center transition-all duration-200
-           hover:border-deck-primary cursor-pointer;
+    @apply w-16 h-16 rounded-full flex items-center justify-center 
+           transition-all duration-200 cursor-pointer border-3 relative;
+    background: linear-gradient(145deg, #1e1e1e 0%, #161616 100%);
+    border-color: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05);
+  }
+  
+  .preview-dial::before {
+    content: '';
+    @apply absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-4 rounded-full;
+    background: linear-gradient(180deg, #0e7afe 0%, rgba(14, 122, 254, 0.5) 100%);
+    box-shadow: 0 2px 4px rgba(14, 122, 254, 0.5);
+  }
+  
+  .preview-dial:hover {
+    @apply shadow-elgato-hover;
+    border-color: #0e7afe;
+    transform: translateY(-2px);
   }
 
   .preview-touch-zone {
-    @apply flex-1 h-12 bg-gray-800 border border-gray-600 
-           flex items-center justify-center text-xs text-gray-400
-           transition-all duration-200 hover:border-deck-primary cursor-pointer;
+    @apply flex-1 h-14 flex items-center justify-center text-xs
+           transition-all duration-200 cursor-pointer border-2 rounded-lg mx-0.5;
+    background: linear-gradient(145deg, #1e1e1e 0%, #161616 100%);
+    border-color: #2a2a2a;
+    color: #969696;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  
+  .preview-touch-zone:hover {
+    @apply shadow-elgato-hover;
+    border-color: #0e7afe;
+    transform: translateY(-2px);
+    color: #ffffff;
   }
 
   .tooltip {

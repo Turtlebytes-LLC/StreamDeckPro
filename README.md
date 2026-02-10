@@ -5,49 +5,72 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-## 🎉 What's New - January 2026
+## 🎉 What's New - February 2026
 
-**Complete Configurator v2 Redesign!**
+**Revolutionary Drag & Drop Configuration!** 🎯
 
-- 🎨 **Official Stream Deck Style UI** - Beautiful dark theme matching the official software
-- 🖼️ **Icon Library with 2000+ Icons** - Browse by category and color with instant preview
-- 👀 **Script Preview** - View any script before assigning it with syntax highlighting
-- ⚡ **Instant Brightness Control** - Adjust brightness without restarting daemon
-- ⚙️ **Settings Panel** - One place for autostart, brightness, and daemon controls
-- 🎛️ **Dial Macro Stepper** - Record macros and step through them keystroke-by-keystroke
-- 📊 **Live System Monitoring** - Real-time CPU charts on touch zones
-- ✨ **Polished UI** - Smooth animations, gradients, and professional design
+- 🎯 **Smart Drop Zones** - Hover over any element to see available actions (Press, Long Press, CW, CCW, Swipes)
+- 🚀 **Auto-Configuration** - Drop .desktop files and automatically extract icon, label, and launch command
+- ⚡ **10x Faster Setup** - Configure buttons in seconds instead of minutes
+- 🎨 **Visual Feedback** - Green highlights show exactly where you're dropping
+- 🖥️ **Works with Everything** - .desktop files, executables, scripts - drop them all!
 
-**Reliability Improvements:**
+**Multi-Action Panels - Full Control!**
+
+- 🔘 **Buttons**: 2 actions per button (Press + Long Press)
+- 🎚️ **Dials**: 4 actions per dial (Clockwise, Counter-clockwise, Press, Long Press)
+- 📱 **Touch Zones**: 6 gestures per zone (Tap, Long Press, Swipe Up/Down/Left/Right)
+- ✅ **No Functionality Lost** - Every action is independently configurable
+
+**Professional UI & Features:**
+
+- 🎨 **Elgato-Inspired Design** - Dark theme with premium gradients and shadows
+- 🖼️ **Icon Library** - 4000+ icons with category and color filters, instant preview
+- 🎯 **Single Instance** - No duplicate configurators, auto-focus if already open
+- 🔧 **Perfect Alignment** - Buttons, dials, and touch zones properly centered
+- ✨ **Smooth Animations** - Professional transitions and micro-interactions
+
+**Reliability & Performance:**
 
 - ✅ **Auto-reconnects on KVM switch** - No more manual restarts!
 - ✅ **USB re-plug detection** - Unplug/replug works automatically
 - ✅ **Robust error recovery** - Never crashes, always recovers
 - ✅ **Fixed autostart** - Works reliably on X11 and Wayland
 - ✅ **Optimized performance** - 80% reduction in overhead
-- ✅ **One-click USB permissions setup** - Automated configuration
 
-**[→ Launch new UI](configurator-electron/SETUP-CONFIGURATOR.md)** | **[→ Test improvements](TESTING.md)** | **[→ See all changes](docs/FIXES-APPLIED.md)**
+**[→ Quick Start](#-quick-start)** | **[→ Drag & Drop Guide](configurator-electron/DRAG-AND-DROP.md)** | **[→ Full Setup](configurator-electron/SETUP-CONFIGURATOR.md)**
 
 ## ✨ Features
 
-### Configurator v2
-- **🎨 Official-Style Interface** - Dark theme matching Elgato's official software
-- **🖼️ Icon Library** - 2000+ icons with category and color filters
-- **👀 Script Preview** - View any script contents before assigning
-- **⚡ Live Brightness** - Adjust Stream Deck brightness instantly
-- **⚙️ Settings Panel** - Autostart, brightness, daemon controls in one place
-- **📊 System Monitoring** - Live CPU charts with sparklines
-- **✨ Beautiful Animations** - Smooth transitions and hover effects
+### 🎯 Revolutionary Drag & Drop
+- **Smart Drop Zones** - Hover to see all available actions for each element
+- **Auto-Configuration** - Drop .desktop files → Automatically sets icon, label, and script
+- **Multi-Action Support** - Drop on specific zones (Press vs Long Press, CW vs CCW, etc.)
+- **Visual Feedback** - Blue zones ready, green on hover, pulse on success
+- **Universal Support** - Works with .desktop files, executables, and scripts
+- **10x Faster** - Configure your entire Stream Deck in minutes
 
-### Actions & Automation
-- **50 Customizable Actions** - 8 LCD buttons, 16 dial actions (4 dials × 4 gestures), 24 touchscreen gestures, 2 long swipes
-- **135+ Ready-to-Use Scripts** - General actions, developer tools, and system utilities
-- **Dial Macro Stepper** - Record macros and step through them keystroke-by-keystroke
-- **Custom Images & Labels** - Personalize every button and touchscreen zone
-- **Hot-Reload Support** - Changes take effect immediately without restarting
-- **Complete Logging** - Track every action with journalctl integration
-- **Zero Configuration** - No JSON, no complex setup - just bash scripts!
+### 🎨 Premium Configurator
+- **Elgato-Style UI** - Professional dark theme with gradients and shadows
+- **Multi-Action Panels** - Every element shows all its actions:
+  - Buttons: Press + Long Press
+  - Dials: CW + CCW + Press + Long Press
+  - Touch Zones: Tap + Long Press + 4 Swipes
+- **Icon Library** - 4000+ icons with category and color filters
+- **Single Instance** - Auto-focuses existing window, no duplicates
+- **Perfect Layout** - All elements properly aligned and centered
+- **Smooth Animations** - Professional transitions and hover effects
+
+### ⚡ Actions & Automation
+- **50 Customizable Actions** - Full control over every button, dial, and gesture
+  - 8 buttons × 2 actions = 16 button actions
+  - 4 dials × 4 actions = 16 dial actions  
+  - 4 touch zones × 6 gestures = 24 touch actions
+- **135+ Ready-to-Use Scripts** - General actions, developer tools, system utilities
+- **Custom Images & Labels** - Personalize every element
+- **Hot-Reload Support** - Changes take effect immediately
+- **Complete Logging** - Track every action with journalctl
+- **Zero Config** - No JSON, just bash scripts!
 
 ## 🚀 Quick Start
 

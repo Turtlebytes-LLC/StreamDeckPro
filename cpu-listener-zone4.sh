@@ -2,11 +2,11 @@
 # CPU Monitor for Touch Zone 4 - Shows rolling line chart of CPU history
 # Configurable update interval (default 2 seconds)
 
-ACTIONS_DIR="$HOME/streamdeck-actions"
+ACTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOUCH_IMAGE="$ACTIONS_DIR/touchscreen/touch-4.png"
 GENERATOR="$ACTIONS_DIR/generate-cpu-chart.py"
 
-UPDATE_INTERVAL="${CPU_UPDATE_INTERVAL:-2}"
+UPDATE_INTERVAL="${CPU_UPDATE_INTERVAL:-5}"
 
 get_cpu() {
     # Get CPU usage from /proc/stat

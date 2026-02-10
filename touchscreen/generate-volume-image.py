@@ -58,7 +58,7 @@ def generate_volume_image():
     draw.text((width//2, 88), "VOLUME", fill='#888888', font=font_small, anchor='mm')
     
     script_dir = Path(__file__).parent
-    img.save(script_dir / 'touch-3.png')
+    img.save(script_dir / 'touch-2.png')
 
 if __name__ == '__main__':
     generate_volume_image()

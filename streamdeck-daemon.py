@@ -215,6 +215,10 @@ class StreamDeckDaemon:
         self.touch_longpress_timers = {}
         self.touch_longpress_triggered = {}
 
+        self.button_press_times = {}
+        self.button_longpress_timers = {}
+        self.button_longpress_triggered = {}
+
         self.last_swipe_time = 0
         self.swipe_debounce_delay = 0.3
         self.swipe_in_progress = False
@@ -695,13 +699,46 @@ class StreamDeckDaemon:
             self.device_connected = False
 
     def button_callback(self, deck, key, state):
-        """Handle button press/release"""
-        if state:  # Only on press, not release
-            button_num = key + 1  # 0-indexed to 1-indexed
-            script = BUTTONS_DIR / f"button-{button_num}.sh"
+        """Handle button press/release (including long press)"""
+        button_num = key + 1  # 0-indexed to 1-indexed
 
-            logging.info(f"Button {button_num} pressed")
-            self.execute_script(script, f"Button {button_num} Pressed")
+        if state:  # Pressed down
+            self.button_press_times[key] = time.time()
+            self.button_longpress_triggered[key] = False
+
+            timer = threading.Timer(0.5, self.trigger_button_longpress, args=(key, button_num))
+            timer.daemon = True
+            timer.start()
+            self.button_longpress_timers[key] = timer
+
+            logging.info(f"Button {button_num} pushed (tracking for long press)")
+        else:  # Released
+            if key in self.button_longpress_timers:
+                self.button_longpress_timers[key].cancel()
+                del self.button_longpress_timers[key]
+
+            if key in self.button_press_times:
+                longpress_was_triggered = self.button_longpress_triggered.get(key, False)
+                del self.button_press_times[key]
+
+                if key in self.button_longpress_triggered:
+                    del self.button_longpress_triggered[key]
+
+                if not longpress_was_triggered:
+                    script = BUTTONS_DIR / f"button-{button_num}.sh"
+                    logging.info(f"Button {button_num} pressed (short)")
+                    self.execute_script(script, f"Button {button_num} Pressed")
+                else:
+                    logging.info(f"Button {button_num} released (long press already triggered)")
+
+    def trigger_button_longpress(self, key, button_num):
+        """Trigger long press for a button (called by timer)"""
+        if key in self.button_press_times and not self.button_longpress_triggered.get(key, False):
+            script = BUTTONS_DIR / f"button-{button_num}-longpress.sh"
+            press_duration = time.time() - self.button_press_times[key]
+            logging.info(f"Button {button_num} long pressed ({press_duration:.2f}s)")
+            self.execute_script(script, f"Button {button_num} Long Press")
+            self.button_longpress_triggered[key] = True
 
     def trigger_dial_longpress(self, dial, dial_num):
         """Trigger long press for a dial (called by timer)"""
@@ -1256,7 +1293,7 @@ notify-send "Stream Deck" "{action_description}" -t 2000
         profile = self.device_profile or DEFAULT_PROFILE
         
         if profile['buttons'] > 0:
-            logging.info(f"  Buttons (1-{profile['buttons']}): button-N.sh")
+            logging.info(f"  Buttons (1-{profile['buttons']}): button-N.sh, button-N-longpress.sh")
         
         if profile['dials'] > 0:
             logging.info(f"  Dials (1-{profile['dials']}): dial-N-cw.sh, dial-N-ccw.sh, dial-N-press.sh, dial-N-longpress.sh")

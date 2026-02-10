@@ -14,12 +14,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 SITES = [
-    ("Google", "google.com"),
+    ("Turtle", "turtlebytes.com"),
     ("GitHub", "github.com"),
     ("AWS", "aws.amazon.com"),
-    ("Cloudflare", "cloudflare.com"),
-    ("Reddit", "reddit.com"),
-    ("Stack", "stackoverflow.com"),
+    ("1to1Plus", "1to1plus.com"),
 ]
 
 BUTTON_SIZE = (120, 120)
@@ -27,16 +25,21 @@ SCRIPT_DIR = Path(__file__).parent
 OUTPUT_PATH = SCRIPT_DIR / "button-1.png"
 
 def check_site(domain, timeout=2):
+    """Check site and return (is_up, ping_time_ms)"""
+    import time
     try:
+        start = time.time()
         result = subprocess.run(
             ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", 
              "-m", str(timeout), f"https://{domain}"],
             capture_output=True, text=True, timeout=timeout + 1
         )
+        elapsed_ms = int((time.time() - start) * 1000)
         code = result.stdout.strip()
-        return code.startswith("2") or code.startswith("3")
+        is_up = code.startswith("2") or code.startswith("3")
+        return (is_up, elapsed_ms if is_up else None)
     except:
-        return False
+        return (False, None)
 
 def get_font(size):
     font_paths = [
@@ -63,19 +66,22 @@ def generate_image():
     
     for i, (name, domain) in enumerate(SITES):
         y = y_start + (i * row_height)
-        is_up = check_site(domain)
+        is_up, ping_ms = check_site(domain)
         
         if is_up:
             indicator_color = '#00ff88'
             text_color = '#ffffff'
             status = "●"
+            ping_text = f"{ping_ms}ms" if ping_ms else ""
         else:
             indicator_color = '#ff4444'
             text_color = '#888888'
             status = "○"
+            ping_text = ""
         
         draw.text((8, y), status, fill=indicator_color, font=site_font)
-        draw.text((20, y), name[:8], fill=text_color, font=site_font)
+        label = f"{name[:8]} {ping_text}" if ping_text else name[:8]
+        draw.text((20, y), label, fill=text_color, font=site_font)
     
     img.save(OUTPUT_PATH, 'PNG')
     print(f"Generated: {OUTPUT_PATH}")

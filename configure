@@ -2,5 +2,38 @@
 # Launch Stream Deck Configuration UI - Official Style
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
-./configure-electron
+
+# Check if configurator is already running
+LOCKFILE="$SCRIPT_DIR/.configurator.lock"
+
+if [ -f "$LOCKFILE" ]; then
+    PID=$(cat "$LOCKFILE")
+    if ps -p "$PID" > /dev/null 2>&1; then
+        echo "Stream Deck Configurator is already running (PID: $PID)"
+        
+        # Try to bring the window to front using wmctrl
+        if command -v wmctrl &> /dev/null; then
+            wmctrl -a "Stream Deck Configurator" 2>/dev/null || wmctrl -a "configurator" 2>/dev/null
+        fi
+        
+        exit 0
+    else
+        # Stale lock file, remove it
+        rm -f "$LOCKFILE"
+    fi
+fi
+
+# Create lock file with current PID
+echo $$ > "$LOCKFILE"
+
+# Cleanup function to remove lock file
+cleanup() {
+    rm -f "$LOCKFILE"
+}
+
+trap cleanup EXIT INT TERM
+
+cd "$SCRIPT_DIR/configurator-electron"
+./start.sh
+
+# Lock file will be removed by trap on exit

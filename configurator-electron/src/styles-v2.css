@@ -39,7 +39,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -55,6 +55,62 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.4), 0 4px 16px rgba(0, 120, 212, 0.3);
   transform: translateY(-1px);
+}
+
+.deck-button.drag-hover .drop-zones,
+.deck-dial.drag-hover .drop-zones,
+.deck-touch-zone.drag-hover .drop-zones {
+  display: flex !important;
+}
+
+.drop-zones {
+  display: none;
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 6px;
+  z-index: 100;
+  pointer-events: auto;
+  padding: 4px;
+}
+
+.drop-zone {
+  padding: 6px 10px;
+  background: rgba(14, 122, 254, 0.95);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.drop-zone:hover {
+  background: rgba(14, 122, 254, 1);
+  transform: scale(1.05);
+}
+
+.drop-zone.active {
+  background: rgba(16, 185, 129, 0.95);
+  animation: pulse 0.5s;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.deck-button.drag-over,
+.deck-dial.drag-over,
+.deck-touch-zone.drag-over {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5) !important;
 }
 
 .deck-button img {

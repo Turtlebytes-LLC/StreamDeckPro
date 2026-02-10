@@ -205,6 +205,8 @@ async function createButtonElement(num) {
 
   // Add click handler
   button.addEventListener('click', () => selectElement(button, 'button', num));
+  
+  setupDragAndDrop(button, 'button', num);
 
   return button;
 }
@@ -223,6 +225,8 @@ function createDialElement(num) {
 
   // Add click handler
   dial.addEventListener('click', () => selectElement(dial, 'dial', num));
+  
+  setupDragAndDrop(dial, 'dial', num);
 
   return dial;
 }
@@ -265,6 +269,8 @@ async function createTouchZoneElement(num) {
 
   // Add click handler
   zone.addEventListener('click', () => selectElement(zone, 'touch', num));
+  
+  setupDragAndDrop(zone, 'touch', num);
 
   return zone;
 }
@@ -302,16 +308,335 @@ async function showConfigPanel(type, num) {
   const panel = document.getElementById('element-panel');
   const title = document.getElementById('element-title');
 
-  // Update title
   const typeNames = { button: 'Button', dial: 'Dial', touch: 'Touch Zone' };
   title.textContent = `${typeNames[type]} ${num}`;
 
-  // Load current configuration
-  await loadElementConfig(type, num);
+  if (type === 'dial') {
+    await showDialPanel(num);
+  } else if (type === 'touch') {
+    await showTouchPanel(num);
+  } else if (type === 'button') {
+    await showButtonPanel(num);
+  } else {
+    await loadElementConfig(type, num);
+  }
 
   // Show panel with animation
   panel.classList.remove('hidden');
   panel.classList.add('slide-in');
+}
+
+async function showDialPanel(num) {
+  const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
+  
+  const dialActions = [
+    { key: 'cw', name: 'Rotate Clockwise', icon: '↻', color: 'blue' },
+    { key: 'ccw', name: 'Rotate Counter-Clockwise', icon: '↺', color: 'green' },
+    { key: 'press', name: 'Press', icon: '⬇', color: 'amber' },
+    { key: 'longpress', name: 'Long Press', icon: '⏱', color: 'red' }
+  ];
+  
+  let html = '';
+  
+  for (const action of dialActions) {
+    const scriptPath = `${dirs.dials}/dial-${num}-${action.key}.sh`;
+    const scriptExists = await window.api.fileExists(scriptPath);
+    const scriptName = scriptExists ? scriptPath.split('/').pop() : 'No script assigned';
+    
+    const colorClasses = {
+      blue: 'bg-blue-600 hover:bg-blue-700',
+      green: 'bg-green-600 hover:bg-green-700',
+      amber: 'bg-amber-600 hover:bg-amber-700',
+      red: 'bg-red-600 hover:bg-red-700'
+    };
+    
+    html += `
+      <div class="pt-4 ${action.key !== 'cw' ? 'border-t border-[#3a3a3a]' : ''}">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-2xl">${action.icon}</span>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
+        </div>
+        <input
+          type="text"
+          id="dial-${action.key}-script"
+          readonly
+          value="${scriptName}"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+        >
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            onclick="browseDialScript('${num}', '${action.key}')"
+            class="${colorClasses[action.color]} px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Browse
+          </button>
+          <button
+            onclick="editDialScript('${num}', '${action.key}')"
+            class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Edit
+          </button>
+          <button
+            onclick="clearDialScript('${num}', '${action.key}')"
+            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
+  html += `
+    <div class="pt-4 border-t border-[#3a3a3a]">
+      <button
+        onclick="closeDialPanel()"
+        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+      >
+        Close
+      </button>
+    </div>
+  `;
+  
+  panelContent.innerHTML = html;
+}
+
+async function showButtonPanel(num) {
+  const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
+  
+  const buttonActions = [
+    { key: '', name: 'Press', icon: '👆', color: 'blue' },
+    { key: '-longpress', name: 'Long Press', icon: '⏱', color: 'purple' }
+  ];
+  
+  let html = '';
+  
+  const imagePath = await findImageFile(`${dirs.buttons}/button-${num}`);
+  const imagePreview = imagePath ? 
+    `<img src="${(await window.api.readImageBase64(imagePath)).data}" style="width: 100%; height: 100%; object-fit: cover;">` :
+    '<span style="font-size: 48px;">🎛️</span>';
+  
+  html += `
+    <div>
+      <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Display Image</label>
+      <div class="w-full aspect-square bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] flex items-center justify-center mb-3 overflow-hidden">
+        ${imagePreview}
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="browseButtonImage(${num})" class="bg-blue-600 hover:bg-blue-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Browse
+        </button>
+        <button onclick="selectButtonIcon(${num})" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Icons
+        </button>
+        <button onclick="clearButtonImage(${num})" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+          Clear
+        </button>
+      </div>
+    </div>
+  `;
+  
+  for (const action of buttonActions) {
+    const scriptPath = `${dirs.buttons}/button-${num}${action.key}.sh`;
+    const scriptExists = await window.api.fileExists(scriptPath);
+    const scriptName = scriptExists ? scriptPath.split('/').pop() : 'No script assigned';
+    
+    const colorClasses = {
+      blue: 'bg-blue-600 hover:bg-blue-700',
+      purple: 'bg-purple-600 hover:bg-purple-700'
+    };
+    
+    html += `
+      <div class="pt-4 border-t border-[#3a3a3a]">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-2xl">${action.icon}</span>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
+        </div>
+        <input
+          type="text"
+          readonly
+          value="${scriptName}"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+        >
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            onclick="browseButtonScript('${num}', '${action.key}')"
+            class="${colorClasses[action.color]} px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Browse
+          </button>
+          <button
+            onclick="editButtonScript('${num}', '${action.key}')"
+            class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Edit
+          </button>
+          <button
+            onclick="clearButtonScript('${num}', '${action.key}')"
+            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
+  const labelPath = `${dirs.buttons}/button-${num}.txt`;
+  const labelValue = (await window.api.fileExists(labelPath)) ? 
+    (await window.api.readFile(labelPath)).content.trim() : '';
+  
+  html += `
+    <div class="pt-4 border-t border-[#3a3a3a]">
+      <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Text</label>
+      <input
+        type="text"
+        id="button-label-${num}"
+        value="${labelValue}"
+        placeholder="Optional label text"
+        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+      >
+      <button onclick="saveButtonLabel(${num})" class="w-full mt-3 bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors">
+        Save Label
+      </button>
+    </div>
+    
+    <div class="pt-4 border-t border-[#3a3a3a]">
+      <button
+        onclick="closeButtonPanel()"
+        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+      >
+        Close
+      </button>
+    </div>
+  `;
+  
+  panelContent.innerHTML = html;
+}
+
+async function showTouchPanel(num) {
+  const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
+  
+  const touchActions = [
+    { key: '', name: 'Tap', icon: '👆', color: 'blue' },
+    { key: '-longpress', name: 'Long Press', icon: '⏱', color: 'purple' },
+    { key: '-swipe-up', name: 'Swipe Up', icon: '⬆️', color: 'green' },
+    { key: '-swipe-down', name: 'Swipe Down', icon: '⬇️', color: 'green' },
+    { key: '-swipe-left', name: 'Swipe Left', icon: '⬅️', color: 'amber' },
+    { key: '-swipe-right', name: 'Swipe Right', icon: '➡️', color: 'amber' }
+  ];
+  
+  let html = '';
+  
+  const imagePath = await findImageFile(`${dirs.touch}/touch-${num}`);
+  const imagePreview = imagePath ? 
+    `<img src="${(await window.api.readImageBase64(imagePath)).data}" style="width: 100%; height: 100%; object-fit: cover;">` :
+    '<span style="font-size: 48px;">📱</span>';
+  
+  html += `
+    <div>
+      <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Display Image</label>
+      <div class="w-full aspect-[2/1] bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] flex items-center justify-center mb-3 overflow-hidden">
+        ${imagePreview}
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="browseTouchImage(${num})" class="bg-blue-600 hover:bg-blue-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Browse
+        </button>
+        <button onclick="selectTouchIcon(${num})" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Icons
+        </button>
+        <button onclick="clearTouchImage(${num})" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+          Clear
+        </button>
+      </div>
+    </div>
+  `;
+  
+  for (const action of touchActions) {
+    const scriptPath = `${dirs.touch}/touch-${num}${action.key}.sh`;
+    const scriptExists = await window.api.fileExists(scriptPath);
+    const scriptName = scriptExists ? scriptPath.split('/').pop() : 'No script assigned';
+    
+    const colorClasses = {
+      blue: 'bg-blue-600 hover:bg-blue-700',
+      purple: 'bg-purple-600 hover:bg-purple-700',
+      green: 'bg-green-600 hover:bg-green-700',
+      amber: 'bg-amber-600 hover:bg-amber-700'
+    };
+    
+    html += `
+      <div class="pt-4 border-t border-[#3a3a3a]">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-2xl">${action.icon}</span>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
+        </div>
+        <input
+          type="text"
+          readonly
+          value="${scriptName}"
+          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+        >
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            onclick="browseTouchScript('${num}', '${action.key}')"
+            class="${colorClasses[action.color]} px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Browse
+          </button>
+          <button
+            onclick="editTouchScript('${num}', '${action.key}')"
+            class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Edit
+          </button>
+          <button
+            onclick="clearTouchScript('${num}', '${action.key}')"
+            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
+  const labelPath = `${dirs.touch}/touch-${num}.txt`;
+  const labelValue = (await window.api.fileExists(labelPath)) ? 
+    (await window.api.readFile(labelPath)).content.trim() : '';
+  
+  html += `
+    <div class="pt-4 border-t border-[#3a3a3a]">
+      <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Text</label>
+      <input
+        type="text"
+        id="touch-label-${num}"
+        value="${labelValue}"
+        placeholder="Optional label text"
+        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+      >
+      <button onclick="saveTouchLabel(${num})" class="w-full mt-3 bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors">
+        Save Label
+      </button>
+    </div>
+    
+    <div class="pt-4 border-t border-[#3a3a3a]">
+      <button
+        onclick="closeTouchPanel()"
+        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+      >
+        Close
+      </button>
+    </div>
+  `;
+  
+  panelContent.innerHTML = html;
 }
 
 // Load element configuration
@@ -608,118 +933,7 @@ async function showIconLibrary(category = null, color = null) {
   modal.classList.remove('hidden');
 }
 
-// Render icon category filters
-function renderIconFilters() {
-  const filterContainer = document.getElementById('icon-filters');
-  if (!filterContainer) return;
 
-  filterContainer.innerHTML = '';
-
-  // Add "All" button
-  const allBtn = document.createElement('button');
-  allBtn.textContent = `All (${allIcons.length})`;
-  allBtn.className = currentIconCategory === 'all' ?
-    'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white' :
-    'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-  allBtn.addEventListener('click', () => {
-    document.querySelectorAll('#icon-filters button').forEach(b => {
-      b.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-    });
-    allBtn.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white';
-    showIconLibrary('all', null);
-  });
-  filterContainer.appendChild(allBtn);
-
-  // Add category buttons
-  const sortedCategories = Array.from(iconCategories).sort();
-  for (const cat of sortedCategories) {
-    const count = allIcons.filter(f => f.startsWith(cat + '/')).length;
-    const btn = document.createElement('button');
-    btn.textContent = `${cat} (${count})`;
-    btn.className = currentIconCategory === cat ?
-      'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white' :
-      'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#icon-filters button').forEach(b => {
-        b.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-      });
-      btn.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white';
-      showIconLibrary(cat, null);
-    });
-    filterContainer.appendChild(btn);
-  }
-}
-
-// Render icon color filters
-function renderIconColorFilters() {
-  const filterContainer = document.getElementById('icon-color-filters');
-  if (!filterContainer) return;
-
-  filterContainer.innerHTML = '';
-
-  // Calculate counts for each color across current category
-  let colorsToShow = iconColors;
-  if (currentIconCategory !== 'all') {
-    // Only show colors available in current category
-    colorsToShow = new Set();
-    allIcons.forEach(file => {
-      if (file.startsWith(currentIconCategory + '/')) {
-        const parts = file.split('/');
-        if (parts.length > 2) {
-          colorsToShow.add(parts[1]);
-        }
-      }
-    });
-  }
-
-  // Add "All" button
-  const allBtn = document.createElement('button');
-  const allCount = currentIconCategory === 'all' ? allIcons.length :
-                   allIcons.filter(f => f.startsWith(currentIconCategory + '/')).length;
-  allBtn.textContent = `All (${allCount})`;
-  allBtn.className = currentIconColor === 'all' ?
-    'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white' :
-    'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-  allBtn.addEventListener('click', () => {
-    document.querySelectorAll('#icon-color-filters button').forEach(b => {
-      b.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-    });
-    allBtn.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white';
-    showIconLibrary(null, 'all');
-  });
-  filterContainer.appendChild(allBtn);
-
-  // Add color buttons
-  const sortedColors = Array.from(colorsToShow).sort();
-  for (const color of sortedColors) {
-    let count = 0;
-    if (currentIconCategory === 'all') {
-      count = allIcons.filter(f => {
-        const parts = f.split('/');
-        return parts.length > 2 && parts[1] === color;
-      }).length;
-    } else {
-      count = allIcons.filter(f => {
-        const parts = f.split('/');
-        return f.startsWith(currentIconCategory + '/') && parts.length > 2 && parts[1] === color;
-      }).length;
-    }
-
-    const btn = document.createElement('button');
-    btn.textContent = `${color} (${count})`;
-    btn.className = currentIconColor === color ?
-      'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white' :
-      'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#icon-color-filters button').forEach(b => {
-        b.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-[#2b2b2b] hover:bg-[#3a3a3a]';
-      });
-      btn.className = 'px-3 py-1.5 text-xs rounded transition-colors bg-blue-600 text-white';
-      showIconLibrary(null, color);
-    });
-    filterContainer.appendChild(btn);
-  }
-}
 
 // Select icon from library
 async function selectIcon(iconPath) {
@@ -865,6 +1079,295 @@ async function clearScript() {
     console.error('Clear script error:', error);
     showToast(`Error: ${error.message}`, 'error');
   }
+}
+
+window.browseDialScript = async function(dialNum, actionKey) {
+  try {
+    const result = await window.api.selectFile(['sh']);
+
+    if (result.success && result.filePath) {
+      const destPath = `${dirs.dials}/dial-${dialNum}-${actionKey}.sh`;
+
+      await window.api.copyFile(result.filePath, destPath);
+      await window.api.makeExecutable(destPath);
+
+      showToast(`Script assigned to ${actionKey}!`, 'success');
+
+      document.getElementById(`dial-${actionKey}-script`).value = destPath.split('/').pop();
+
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await showDialPanel(dialNum);
+    }
+  } catch (error) {
+    console.error('Browse dial script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.editDialScript = async function(dialNum, actionKey) {
+  const scriptPath = `${dirs.dials}/dial-${dialNum}-${actionKey}.sh`;
+  
+  if (await window.api.fileExists(scriptPath)) {
+    await window.api.execCommand(`xdg-open "${scriptPath}"`);
+    showToast('Opening script in editor...', 'info');
+  }
+}
+
+window.clearDialScript = async function(dialNum, actionKey) {
+  try {
+    const scriptPath = `${dirs.dials}/dial-${dialNum}-${actionKey}.sh`;
+
+    if (await window.api.fileExists(scriptPath)) {
+      await window.api.deleteFile(scriptPath);
+    }
+
+    showToast(`${actionKey} script cleared!`, 'success');
+    
+    await showDialPanel(dialNum);
+  } catch (error) {
+    console.error('Clear dial script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.closeDialPanel = function() {
+  const panel = document.getElementById('element-panel');
+  panel.classList.add('hidden');
+  
+  document.querySelectorAll('.deck-dial').forEach(el => el.classList.remove('selected'));
+  selectedElement = null;
+}
+
+window.browseButtonScript = async function(buttonNum, actionKey) {
+  try {
+    const result = await window.api.selectFile(['sh']);
+
+    if (result.success && result.filePath) {
+      const destPath = `${dirs.buttons}/button-${buttonNum}${actionKey}.sh`;
+
+      await window.api.copyFile(result.filePath, destPath);
+      await window.api.makeExecutable(destPath);
+
+      showToast(`Script assigned!`, 'success');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await showButtonPanel(buttonNum);
+    }
+  } catch (error) {
+    console.error('Browse button script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.editButtonScript = async function(buttonNum, actionKey) {
+  const scriptPath = `${dirs.buttons}/button-${buttonNum}${actionKey}.sh`;
+  
+  if (await window.api.fileExists(scriptPath)) {
+    await window.api.execCommand(`xdg-open "${scriptPath}"`);
+    showToast('Opening script in editor...', 'info');
+  }
+}
+
+window.clearButtonScript = async function(buttonNum, actionKey) {
+  try {
+    const scriptPath = `${dirs.buttons}/button-${buttonNum}${actionKey}.sh`;
+
+    if (await window.api.fileExists(scriptPath)) {
+      await window.api.deleteFile(scriptPath);
+    }
+
+    showToast(`Script cleared!`, 'success');
+    await showButtonPanel(buttonNum);
+  } catch (error) {
+    console.error('Clear button script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.browseButtonImage = async function(buttonNum) {
+  try {
+    const result = await window.api.selectFile(['png', 'jpg', 'jpeg', 'svg']);
+
+    if (result.success && result.filePath) {
+      const ext = result.filePath.split('.').pop();
+      const destPath = `${dirs.buttons}/button-${buttonNum}.${ext}`;
+
+      await window.api.copyFile(result.filePath, destPath);
+      showToast('Image assigned!', 'success');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await showButtonPanel(buttonNum);
+      await renderDeckPreview();
+    }
+  } catch (error) {
+    console.error('Browse button image error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.selectButtonIcon = async function(buttonNum) {
+  await openIconLibrary('button', buttonNum);
+}
+
+window.clearButtonImage = async function(buttonNum) {
+  try {
+    for (const ext of ['png', 'jpg', 'jpeg', 'svg']) {
+      const imagePath = `${dirs.buttons}/button-${buttonNum}.${ext}`;
+      if (await window.api.fileExists(imagePath)) {
+        await window.api.deleteFile(imagePath);
+      }
+    }
+
+    showToast('Image cleared!', 'success');
+    await showButtonPanel(buttonNum);
+    await renderDeckPreview();
+  } catch (error) {
+    console.error('Clear button image error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.saveButtonLabel = async function(buttonNum) {
+  try {
+    const label = document.getElementById(`button-label-${buttonNum}`).value.trim();
+    const labelPath = `${dirs.buttons}/button-${buttonNum}.txt`;
+
+    if (label) {
+      await window.api.writeFile(labelPath, label);
+    } else {
+      if (await window.api.fileExists(labelPath)) {
+        await window.api.deleteFile(labelPath);
+      }
+    }
+
+    showToast('Label saved!', 'success');
+    await renderDeckPreview();
+  } catch (error) {
+    console.error('Save button label error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.closeButtonPanel = function() {
+  const panel = document.getElementById('element-panel');
+  panel.classList.add('hidden');
+  
+  document.querySelectorAll('.deck-button').forEach(el => el.classList.remove('selected'));
+  selectedElement = null;
+}
+
+window.browseTouchScript = async function(zoneNum, actionKey) {
+  try {
+    const result = await window.api.selectFile(['sh']);
+
+    if (result.success && result.filePath) {
+      const destPath = `${dirs.touch}/touch-${zoneNum}${actionKey}.sh`;
+
+      await window.api.copyFile(result.filePath, destPath);
+      await window.api.makeExecutable(destPath);
+
+      showToast(`Script assigned!`, 'success');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await showTouchPanel(zoneNum);
+    }
+  } catch (error) {
+    console.error('Browse touch script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.editTouchScript = async function(zoneNum, actionKey) {
+  const scriptPath = `${dirs.touch}/touch-${zoneNum}${actionKey}.sh`;
+  
+  if (await window.api.fileExists(scriptPath)) {
+    await window.api.execCommand(`xdg-open "${scriptPath}"`);
+    showToast('Opening script in editor...', 'info');
+  }
+}
+
+window.clearTouchScript = async function(zoneNum, actionKey) {
+  try {
+    const scriptPath = `${dirs.touch}/touch-${zoneNum}${actionKey}.sh`;
+
+    if (await window.api.fileExists(scriptPath)) {
+      await window.api.deleteFile(scriptPath);
+    }
+
+    showToast(`Script cleared!`, 'success');
+    await showTouchPanel(zoneNum);
+  } catch (error) {
+    console.error('Clear touch script error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.browseTouchImage = async function(zoneNum) {
+  try {
+    const result = await window.api.selectFile(['png', 'jpg', 'jpeg', 'svg']);
+
+    if (result.success && result.filePath) {
+      const ext = result.filePath.split('.').pop();
+      const destPath = `${dirs.touch}/touch-${zoneNum}.${ext}`;
+
+      await window.api.copyFile(result.filePath, destPath);
+      showToast('Image assigned!', 'success');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await showTouchPanel(zoneNum);
+      await renderDeckPreview();
+    }
+  } catch (error) {
+    console.error('Browse touch image error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.selectTouchIcon = async function(zoneNum) {
+  await openIconLibrary('touch', zoneNum);
+}
+
+window.clearTouchImage = async function(zoneNum) {
+  try {
+    for (const ext of ['png', 'jpg', 'jpeg', 'svg']) {
+      const imagePath = `${dirs.touch}/touch-${zoneNum}.${ext}`;
+      if (await window.api.fileExists(imagePath)) {
+        await window.api.deleteFile(imagePath);
+      }
+    }
+
+    showToast('Image cleared!', 'success');
+    await showTouchPanel(zoneNum);
+    await renderDeckPreview();
+  } catch (error) {
+    console.error('Clear touch image error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.saveTouchLabel = async function(zoneNum) {
+  try {
+    const label = document.getElementById(`touch-label-${zoneNum}`).value.trim();
+    const labelPath = `${dirs.touch}/touch-${zoneNum}.txt`;
+
+    if (label) {
+      await window.api.writeFile(labelPath, label);
+    } else {
+      if (await window.api.fileExists(labelPath)) {
+        await window.api.deleteFile(labelPath);
+      }
+    }
+
+    showToast('Label saved!', 'success');
+    await renderDeckPreview();
+  } catch (error) {
+    console.error('Save touch label error:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+window.closeTouchPanel = function() {
+  const panel = document.getElementById('element-panel');
+  panel.classList.add('hidden');
+  
+  document.querySelectorAll('.deck-touch-zone').forEach(el => el.classList.remove('selected'));
+  selectedElement = null;
 }
 
 // Open code editor for current script
@@ -2098,6 +2601,496 @@ async function updateCpuUsage() {
     }
   } catch (error) {
     console.error('Error updating CPU usage:', error);
+  }
+}
+
+let iconLibraryState = {
+  type: null,
+  num: null,
+  allIcons: [],
+  categories: new Set(),
+  colors: new Set(),
+  currentCategory: 'all',
+  currentColor: 'all',
+  searchTerm: ''
+};
+
+async function openIconLibrary(type, num) {
+  iconLibraryState.type = type;
+  iconLibraryState.num = num;
+  
+  const modal = document.getElementById('icon-library-modal');
+  modal.classList.remove('hidden');
+  
+  await loadIconLibrary();
+}
+
+async function loadIconLibrary() {
+  const loading = document.getElementById('icon-loading');
+  const empty = document.getElementById('icon-empty');
+  const grid = document.getElementById('icon-grid');
+  
+  loading.classList.remove('hidden');
+  empty.classList.add('hidden');
+  grid.innerHTML = '';
+  
+  iconLibraryState.categories.clear();
+  iconLibraryState.colors.clear();
+  iconLibraryState.allIcons = [];
+  
+  try {
+    const result = await window.api.listDirectoryRecursive(dirs.icons);
+    
+    if (result.success && result.files && result.files.length > 0) {
+      iconLibraryState.allIcons = result.files
+        .filter(f => f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.svg'))
+        .map(f => {
+          const parts = f.split('/');
+          return {
+            path: f,
+            category: parts[0] || 'other',
+            color: parts.length > 1 ? parts[1] : 'default',
+            name: parts[parts.length - 1]
+          };
+        });
+      
+      iconLibraryState.allIcons.forEach(icon => {
+        iconLibraryState.categories.add(icon.category);
+        iconLibraryState.colors.add(icon.color);
+      });
+      
+      console.log('Loaded icons:', iconLibraryState.allIcons.length);
+      console.log('Categories:', Array.from(iconLibraryState.categories));
+      console.log('Colors:', Array.from(iconLibraryState.colors));
+      
+      renderIconFilters();
+      renderIconGrid();
+      
+      loading.classList.add('hidden');
+    } else {
+      loading.classList.add('hidden');
+      empty.classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('Error loading icons:', error);
+    loading.classList.add('hidden');
+    empty.classList.remove('hidden');
+  }
+}
+
+function renderIconFilters() {
+  const categoryContainer = document.getElementById('icon-category-filters');
+  const colorContainer = document.getElementById('icon-color-filters');
+  
+  if (!categoryContainer || !colorContainer) return;
+  
+  categoryContainer.innerHTML = '';
+  colorContainer.innerHTML = '';
+  
+  const btnClass = 'px-3 py-1.5 text-xs rounded transition-colors font-medium';
+  const activeClass = 'bg-purple-600 text-white shadow-lg';
+  const inactiveClass = 'bg-[#2b2b2b] hover:bg-[#3a3a3a] text-gray-300 border border-[#3a3a3a]';
+  
+  const allCategoryBtn = document.createElement('button');
+  allCategoryBtn.textContent = `All (${iconLibraryState.allIcons.length})`;
+  allCategoryBtn.className = `${btnClass} ${iconLibraryState.currentCategory === 'all' ? activeClass : inactiveClass}`;
+  allCategoryBtn.onclick = () => filterIconsByCategory('all');
+  categoryContainer.appendChild(allCategoryBtn);
+  
+  const sortedCategories = Array.from(iconLibraryState.categories).sort();
+  sortedCategories.forEach(cat => {
+    const count = iconLibraryState.allIcons.filter(i => i.category === cat).length;
+    if (count > 0) {
+      const btn = document.createElement('button');
+      btn.textContent = `${cat} (${count})`;
+      btn.className = `${btnClass} ${iconLibraryState.currentCategory === cat ? activeClass : inactiveClass}`;
+      btn.onclick = () => filterIconsByCategory(cat);
+      categoryContainer.appendChild(btn);
+    }
+  });
+  
+  const allColorBtn = document.createElement('button');
+  const colorFilteredIcons = iconLibraryState.currentCategory === 'all' 
+    ? iconLibraryState.allIcons 
+    : iconLibraryState.allIcons.filter(i => i.category === iconLibraryState.currentCategory);
+  allColorBtn.textContent = `All (${colorFilteredIcons.length})`;
+  allColorBtn.className = `${btnClass} ${iconLibraryState.currentColor === 'all' ? activeClass : inactiveClass}`;
+  allColorBtn.onclick = () => filterIconsByColor('all');
+  colorContainer.appendChild(allColorBtn);
+  
+  Array.from(iconLibraryState.colors).sort().forEach(color => {
+    const count = colorFilteredIcons.filter(i => i.color === color).length;
+    if (count > 0) {
+      const btn = document.createElement('button');
+      btn.textContent = `${color} (${count})`;
+      btn.className = `${btnClass} ${iconLibraryState.currentColor === color ? activeClass : inactiveClass}`;
+      btn.onclick = () => filterIconsByColor(color);
+      colorContainer.appendChild(btn);
+    }
+  });
+}
+
+function filterIconsByCategory(category) {
+  iconLibraryState.currentCategory = category;
+  iconLibraryState.currentColor = 'all';
+  renderIconFilters();
+  renderIconGrid();
+}
+
+function filterIconsByColor(color) {
+  iconLibraryState.currentColor = color;
+  renderIconFilters();
+  renderIconGrid();
+}
+
+function renderIconGrid() {
+  const grid = document.getElementById('icon-grid');
+  const searchInput = document.getElementById('icon-search');
+  
+  grid.innerHTML = '';
+  
+  let filtered = iconLibraryState.allIcons;
+  
+  if (iconLibraryState.currentCategory !== 'all') {
+    filtered = filtered.filter(i => i.category === iconLibraryState.currentCategory);
+  }
+  
+  if (iconLibraryState.currentColor !== 'all') {
+    filtered = filtered.filter(i => i.color === iconLibraryState.currentColor);
+  }
+  
+  if (searchInput.value.trim()) {
+    const term = searchInput.value.toLowerCase();
+    filtered = filtered.filter(i => i.name.toLowerCase().includes(term));
+  }
+  
+  filtered.forEach(icon => {
+    const iconEl = document.createElement('div');
+    iconEl.className = 'aspect-square bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] hover:border-purple-500 cursor-pointer transition-all duration-200 flex items-center justify-center p-3 hover:scale-105 hover:shadow-lg';
+    iconEl.onclick = () => selectIcon(icon);
+    
+    const img = document.createElement('img');
+    img.src = `${dirs.icons}/${icon.path}`;
+    img.className = 'w-full h-full object-contain';
+    img.style.filter = 'none';
+    img.title = icon.name;
+    
+    iconEl.appendChild(img);
+    grid.appendChild(iconEl);
+  });
+  
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="col-span-8 text-center text-gray-400 py-12">No icons found</div>';
+  }
+}
+
+async function selectIcon(icon) {
+  const { type, num } = iconLibraryState;
+  
+  try {
+    const sourcePath = `${dirs.icons}/${icon.path}`;
+    const ext = icon.path.split('.').pop();
+    
+    let destPath;
+    if (type === 'button') {
+      destPath = `${dirs.buttons}/button-${num}.${ext}`;
+    } else if (type === 'touch') {
+      destPath = `${dirs.touch}/touch-${num}.${ext}`;
+    }
+    
+    await window.api.copyFile(sourcePath, destPath);
+    
+    showToast('Icon applied!', 'success');
+    
+    const modal = document.getElementById('icon-library-modal');
+    modal.classList.add('hidden');
+    
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    if (type === 'button') {
+      await showButtonPanel(num);
+    } else if (type === 'touch') {
+      await showTouchPanel(num);
+    }
+    
+    await renderDeckPreview();
+  } catch (error) {
+    console.error('Error selecting icon:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+document.getElementById('close-icon-modal')?.addEventListener('click', () => {
+  document.getElementById('icon-library-modal').classList.add('hidden');
+});
+
+document.getElementById('icon-search')?.addEventListener('input', (e) => {
+  renderIconGrid();
+});
+
+function setupDragAndDrop(element, type, num) {
+  const dropZones = createDropZones(type, num);
+  element.appendChild(dropZones);
+  
+  element.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.add('drag-hover');
+  });
+  
+  element.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    if (!element.contains(e.relatedTarget)) {
+      element.classList.remove('drag-hover', 'drag-over');
+    }
+  });
+  
+  element.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.add('drag-over');
+  });
+  
+  element.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.remove('drag-hover', 'drag-over');
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      await handleFileDrop(files[0], type, num, null);
+    }
+  });
+  
+  document.addEventListener('dragend', () => {
+    element.classList.remove('drag-hover', 'drag-over');
+  });
+}
+
+function createDropZones(type, num) {
+  const container = document.createElement('div');
+  container.className = 'drop-zones';
+  
+  const actions = getActionsForType(type);
+  
+  actions.forEach(action => {
+    const zone = document.createElement('div');
+    zone.className = 'drop-zone';
+    zone.textContent = action.label;
+    zone.dataset.action = action.key;
+    zone.dataset.type = type;
+    zone.dataset.num = num;
+    
+    zone.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    
+    zone.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.style.background = 'rgba(16, 185, 129, 0.95)';
+    });
+    
+    zone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.style.background = 'rgba(14, 122, 254, 0.95)';
+    });
+    
+    zone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      zone.classList.add('active');
+      zone.style.background = 'rgba(16, 185, 129, 0.95)';
+      
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        await handleFileDrop(files[0], type, num, action.key);
+      }
+      
+      const parent = zone.closest('[data-type][data-num]');
+      if (parent) {
+        parent.classList.remove('drag-hover', 'drag-over');
+      }
+      
+      setTimeout(() => {
+        zone.classList.remove('active');
+        zone.style.background = 'rgba(14, 122, 254, 0.95)';
+      }, 500);
+    });
+    
+    container.appendChild(zone);
+  });
+  
+  return container;
+}
+
+function getActionsForType(type) {
+  if (type === 'button') {
+    return [
+      { key: '', label: 'Press' },
+      { key: '-longpress', label: 'Long' }
+    ];
+  } else if (type === 'dial') {
+    return [
+      { key: '-cw', label: 'CW' },
+      { key: '-ccw', label: 'CCW' },
+      { key: '-press', label: 'Press' },
+      { key: '-longpress', label: 'Long' }
+    ];
+  } else if (type === 'touch') {
+    return [
+      { key: '', label: 'Tap' },
+      { key: '-longpress', label: 'Long' },
+      { key: '-swipe-up', label: '↑' },
+      { key: '-swipe-down', label: '↓' },
+      { key: '-swipe-left', label: '←' },
+      { key: '-swipe-right', label: '→' }
+    ];
+  }
+  return [];
+}
+
+async function handleFileDrop(file, type, num, actionKey) {
+  console.log('File dropped:', file.path, 'on', type, num, 'action:', actionKey);
+  
+  const filePath = file.path;
+  const fileName = file.name;
+  
+  let appInfo = null;
+  
+  if (fileName.endsWith('.desktop')) {
+    appInfo = await parseDesktopFile(filePath);
+  } else if (fileName.endsWith('.exe')) {
+    appInfo = {
+      name: fileName.replace('.exe', ''),
+      exec: `wine "${filePath}"`,
+      icon: null
+    };
+  } else if (file.type.startsWith('application/') || !file.type) {
+    appInfo = {
+      name: fileName,
+      exec: `"${filePath}"`,
+      icon: null
+    };
+  }
+  
+  if (appInfo) {
+    await autoConfigureApp(appInfo, type, num, actionKey);
+  } else {
+    showToast('Unsupported file type', 'error');
+  }
+}
+
+async function parseDesktopFile(filePath) {
+  try {
+    const result = await window.api.readFile(filePath);
+    if (!result.success) return null;
+    
+    const content = result.content;
+    const lines = content.split('\n');
+    
+    const appInfo = {
+      name: null,
+      exec: null,
+      icon: null
+    };
+    
+    for (const line of lines) {
+      if (line.startsWith('Name=')) {
+        appInfo.name = line.substring(5).trim();
+      } else if (line.startsWith('Exec=')) {
+        let exec = line.substring(5).trim();
+        exec = exec.replace(/%[uUfF]/g, '');
+        exec = exec.trim();
+        appInfo.exec = exec;
+      } else if (line.startsWith('Icon=')) {
+        appInfo.icon = line.substring(5).trim();
+      }
+    }
+    
+    return appInfo;
+  } catch (error) {
+    console.error('Error parsing .desktop file:', error);
+    return null;
+  }
+}
+
+async function autoConfigureApp(appInfo, type, num, actionKey) {
+  console.log('Auto-configuring:', appInfo);
+  
+  const dir = type === 'button' ? dirs.buttons : type === 'dial' ? dirs.dials : dirs.touch;
+  const prefix = type === 'button' ? 'button' : type === 'dial' ? 'dial' : 'touch';
+  const suffix = actionKey || '';
+  
+  try {
+    const scriptPath = `${dir}/${prefix}-${num}${suffix}.sh`;
+    const scriptContent = `#!/bin/bash\n${appInfo.exec}\n`;
+    
+    await window.api.writeFile(scriptPath, scriptContent);
+    await window.api.makeExecutable(scriptPath);
+    
+    if (appInfo.icon) {
+      await copyIconForApp(appInfo.icon, type, num);
+    }
+    
+    if (appInfo.name && !actionKey) {
+      const labelPath = `${dir}/${prefix}-${num}.txt`;
+      await window.api.writeFile(labelPath, appInfo.name);
+    }
+    
+    showToast(`${appInfo.name} configured!`, 'success');
+    
+    await new Promise(resolve => setTimeout(resolve, 600));
+    await renderDeckPreview();
+    
+  } catch (error) {
+    console.error('Error auto-configuring app:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+}
+
+async function copyIconForApp(iconPath, type, num) {
+  try {
+    const dir = type === 'button' ? dirs.buttons : type === 'touch' ? dirs.touch : null;
+    if (!dir) return;
+    
+    const prefix = type === 'button' ? 'button' : 'touch';
+    
+    if (iconPath.startsWith('/')) {
+      if (await window.api.fileExists(iconPath)) {
+        const ext = iconPath.split('.').pop();
+        const destPath = `${dir}/${prefix}-${num}.${ext}`;
+        await window.api.copyFile(iconPath, destPath);
+        return;
+      }
+    }
+    
+    const iconDirs = [
+      '/usr/share/icons/hicolor/128x128/apps',
+      '/usr/share/icons/hicolor/256x256/apps',
+      '/usr/share/pixmaps',
+      `${process.env.HOME}/.local/share/icons`
+    ];
+    
+    for (const iconDir of iconDirs) {
+      for (const ext of ['.png', '.svg', '.xpm']) {
+        const fullPath = `${iconDir}/${iconPath}${ext}`;
+        if (await window.api.fileExists(fullPath)) {
+          const destPath = `${dir}/${prefix}-${num}${ext}`;
+          await window.api.copyFile(fullPath, destPath);
+          return;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error copying icon:', error);
   }
 }
 

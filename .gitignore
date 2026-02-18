@@ -57,3 +57,7 @@ Thumbs.db
 /configurator-electron/node_modules/
 dist/
 .cleanup-archive/
+
+# Local backup and archived docs
+custom-scripts-backup/
+docs/archive/

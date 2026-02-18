@@ -56,7 +56,7 @@
 ```bash
 # Clone the repository
 git clone https://github.com/Turtlebytes-LLC/StreamDeckPro.git
-cd streamdeck-actions
+cd StreamDeckPro
 
 # Install Python dependencies
 pip3 install --user streamdeck
@@ -140,7 +140,7 @@ chmod +x start configure create-action streamdeck-daemon.py
 ### File Structure
 
 ```
-streamdeck-actions/
+StreamDeckPro/
 ├── buttons/              # 8 button scripts + images + labels
 │   ├── button-1.sh       # Script to execute
 │   ├── button-1.png      # Custom image (120×120)

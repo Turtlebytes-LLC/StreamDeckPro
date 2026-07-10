@@ -9,7 +9,7 @@ Stream Deck Icon Downloader
 Downloads and converts Tabler Icons (4000+ free MIT-licensed icons)
 
 USAGE:
-    ./download-icons.sh [OPTIONS] [CATEGORY] [COLOR]
+    utils/download-icons.sh [OPTIONS] [CATEGORY] [COLOR]
 
 OPTIONS:
     --help              Show this help message
@@ -42,14 +42,14 @@ NAMING CONVENTION:
     - Filled: solid shapes in color
 
 EXAMPLES:
-    ./download-icons.sh                     # All outline icons in blue (heart-o.png)
-    ./download-icons.sh test                # 20 outline test icons (star-o.png)
-    ./download-icons.sh --filled            # All filled icons in blue (heart.png)
-    ./download-icons.sh utils               # Utility outline icons (settings-o.png)
-    ./download-icons.sh apps red            # App outline icons in red (folder-red-o.png)
-    ./download-icons.sh brand test          # 20 brand icons (brand-github-o.png)
-    ./download-icons.sh media test green    # 20 media icons (play-green-o.png)
-    ./download-icons.sh --filled dev purple # Filled dev icons (code-purple.png)
+    utils/download-icons.sh                     # All outline icons in blue (heart-o.png)
+    utils/download-icons.sh test                # 20 outline test icons (star-o.png)
+    utils/download-icons.sh --filled            # All filled icons in blue (heart.png)
+    utils/download-icons.sh utils               # Utility outline icons (settings-o.png)
+    utils/download-icons.sh apps red            # App outline icons in red (folder-red-o.png)
+    utils/download-icons.sh brand test          # 20 brand icons (brand-github-o.png)
+    utils/download-icons.sh media test green    # 20 media icons (play-green-o.png)
+    utils/download-icons.sh --filled dev purple # Filled dev icons (code-purple.png)
 
 EOF
     exit 0

@@ -21,7 +21,7 @@ MACRO_FILE="$MACRO_DIR/button-$BUTTON_NUM.json"
 # Check if macro exists
 if [ ! -f "$MACRO_FILE" ]; then
     echo "No macro recorded for button $BUTTON_NUM"
-    echo "Record a macro first using: ./record-macro.sh $BUTTON_NUM"
+    echo "Record a macro first using: utils/record-macro.sh $BUTTON_NUM"
     exit 1
 fi
 

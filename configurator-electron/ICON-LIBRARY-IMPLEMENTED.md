@@ -60,7 +60,7 @@ icons/system/red/power.png
 ### Option 1: Download 4000+ Free Icons
 ```bash
 cd /home/zach2825/Nextcloud/StreamDeckPro
-./download-icons.sh
+utils/download-icons.sh
 ```
 
 This will download Tabler Icons (4000+ MIT-licensed icons) organized by category and color!

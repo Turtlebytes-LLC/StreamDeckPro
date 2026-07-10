@@ -1,16 +1,17 @@
 #!/bin/bash
 # Record Macro - Records keyboard input for a button
-# Usage: ./record-macro.sh <button-number>
+# Usage: utils/record-macro.sh <button-number>
 
 if [ -z "$1" ]; then
-    echo "Usage: ./record-macro.sh <button-number>"
-    echo "Example: ./record-macro.sh 5"
+    echo "Usage: utils/record-macro.sh <button-number>"
+    echo "Example: utils/record-macro.sh 5"
     exit 1
 fi
 
 BUTTON_NUM=$1
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MACRO_DIR="$SCRIPT_DIR/macros"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MACRO_DIR="$REPO_ROOT/macros"
 MACRO_FILE="$MACRO_DIR/button-$BUTTON_NUM.json"
 
 # Create macros directory if it doesn't exist
@@ -30,7 +31,7 @@ read -p "Press ENTER to start recording..."
 echo ""
 
 # Record the macro
-python3 "$SCRIPT_DIR/utils/macro-recorder.py" "$MACRO_FILE"
+python3 "$SCRIPT_DIR/macro-recorder.py" "$MACRO_FILE"
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -43,6 +44,6 @@ if [ $? -eq 0 ]; then
     echo "  2. Assign 'play-macro' to button $BUTTON_NUM"
     echo ""
     echo "To test the macro manually:"
-    echo "  python3 $SCRIPT_DIR/utils/macro-player.py $MACRO_FILE"
+    echo "  python3 $SCRIPT_DIR/macro-player.py $MACRO_FILE"
     echo ""
 fi

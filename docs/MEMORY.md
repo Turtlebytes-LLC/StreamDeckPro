@@ -58,13 +58,13 @@ This file contains the current configuration of this Stream Deck system to help 
 
 **Example: Mute Status (Dynamic)**
 - **Tap:** Toggle mute/unmute
-  - Label: "Muted" or "Unmuted" (dynamic, updated by update-status.sh)
+  - Label: "Muted" or "Unmuted" (dynamic, updated by utils/update-status.sh)
   - Command: `xdotool key XF86AudioMute` + triggers status update
   - Note: Status updater can run every 5 seconds via cron for live status
 
 ## Dynamic Status Updates
 
-The system includes a status updater (`update-status.sh`) that:
+The system includes a status updater (`utils/update-status.sh`) that:
 - Checks system mute status every 5 seconds (via cron)
 - Updates Touch Zone 2 label to show "Muted" or "Unmuted"
 - Automatically runs when mute toggle buttons are pressed
@@ -76,12 +76,12 @@ The system includes a status updater (`update-status.sh`) that:
 
 Icons are downloaded from Tabler Icons (MIT licensed) using:
 ```bash
-./download-icons.sh <category>
+utils/download-icons.sh <category>
 ```
 
 Custom icons are converted using:
 ```bash
-python3 convert-icon.py input.svg output.png [color]
+python3 utils/convert-icon.py input.svg output.png [color]
 ```
 
 ## File Structure
@@ -152,6 +152,6 @@ When asked to create new buttons/dials/touches:
 2. Add descriptive .txt labels when appropriate
 3. Use xdotool for keyboard shortcuts and media controls
 4. For Chrome profiles, check ~/.config/google-chrome/*/Preferences for email addresses
-5. Use convert-icon.py for custom icons (SVG to PNG conversion)
+5. Use utils/convert-icon.py for custom icons (SVG to PNG conversion)
 6. Remember: buttons are 120x120, touch zones are 200x100
 7. All user scripts are in .gitignore and won't be committed

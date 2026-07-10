@@ -5,9 +5,10 @@ decisions referenced as D1-D8. Run all commands from the repo root.
 
 ## 0. Root organization - safe moves first (D8)
 
-- [ ] 0.1 Move convert-icon.py, download-icons.sh, record-macro.sh, update-status.sh to utils/; update every reference (known: configurator-electron/main.js, configurator-electron/preload.js, examples/dev-actions/play-macro.sh; re-grep each filename repo-wide excluding node_modules and .git to catch the rest). Verify: the repo-layout spec's "no stale references" grep returns only utils/ paths, and `./configure` still launches.
-- [ ] 0.2 Move SESSION-SUMMARY.md, SINGLE-INSTANCE.md, TESTING.md, CONFIGURATOR-CONSOLIDATED.md to docs/archive/. Verify: `ls *.md` at root shows only README.md.
-- [ ] 0.3 Create docs/README.md index: one line per doc in docs/ (excluding archive/) describing what it covers. Verify: every `docs/*.md` filename appears in the index.
+- [x] 0.1 Move convert-icon.py, download-icons.sh, record-macro.sh, update-status.sh to utils/; update every reference (known: configurator-electron/main.js, configurator-electron/preload.js, examples/dev-actions/play-macro.sh; re-grep each filename repo-wide excluding node_modules and .git to catch the rest). Verify: the repo-layout spec's "no stale references" grep returns only utils/ paths, and `./configure` still launches.
+      NOTE: record-macro.sh and update-status.sh needed INTERNAL path rewrites, not just reference updates - record-macro.sh built $SCRIPT_DIR/macros and called $SCRIPT_DIR/utils/macro-*.py (now REPO_ROOT/macros and $SCRIPT_DIR/macro-*.py); update-status.sh wrote $ACTIONS_DIR/touchscreen (ACTIONS_DIR now resolves to repo root via ../). Path resolution dry-run confirmed all targets exist. Remaining grep hit is setup-status-updater.sh:20 (a crontab grep pattern, still matches; that file is deleted in 5.4).
+- [x] 0.2 Move SESSION-SUMMARY.md, SINGLE-INSTANCE.md, TESTING.md, CONFIGURATOR-CONSOLIDATED.md to docs/archive/. Verify: `ls *.md` at root shows only README.md. (Confirmed: root has only README.md.)
+- [x] 0.3 Create docs/README.md index: one line per doc in docs/ (excluding archive/) describing what it covers. Verify: every `docs/*.md` filename appears in the index. (Confirmed via grep loop: all listed.)
 
 ## 1. Safety net
 

@@ -2,7 +2,8 @@
 # Status updater for Stream Deck dynamic labels
 # This script checks system status and updates button/touch labels
 
-ACTIONS_DIR="$(dirname "$0")"
+# Script now lives in utils/; labels live in the repo root's touchscreen/
+ACTIONS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Function to check mute status
 update_mute_status() {

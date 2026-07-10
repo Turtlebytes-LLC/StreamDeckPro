@@ -2,7 +2,7 @@
 # Setup script to add status updater to crontab
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CRON_LINE="* * * * * for i in {0..55..5}; do (sleep \$i; $SCRIPT_DIR/update-status.sh) & done"
+CRON_LINE="* * * * * for i in {0..55..5}; do (sleep \$i; $SCRIPT_DIR/utils/update-status.sh) & done"
 
 echo "🎛️  Stream Deck Status Updater Setup"
 echo "===================================="
@@ -26,7 +26,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     fi
 
     # Run it once to initialize
-    "$SCRIPT_DIR/update-status.sh"
+    "$SCRIPT_DIR/utils/update-status.sh"
     echo "✅ Initial status updated"
     echo ""
     echo "Your Stream Deck buttons will now show live status updates!"

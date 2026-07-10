@@ -2,9 +2,7 @@
 
 ## Purpose
 The daemon (streamdeck-daemon.py, single-file Python) connects to an Elgato Stream Deck, renders button and touchscreen displays from files on disk, and dispatches every hardware event to an executable shell script named by convention.
-
 ## Requirements
-
 ### Requirement: Device Connection and Profiles
 The daemon SHALL enumerate Stream Deck devices via the StreamDeck DeviceManager, open the first device found, reset it, and select a device profile (button count/layout/size, dial count, touchscreen geometry) by matching the reported deck type against a built-in profile table covering Mini, Original, MK.2, XL, Plus, Pedal, and Neo. Unknown devices fall back to a 15-button default profile. On connect the daemon writes device type, serial, firmware, and profile to `.device-info.json` for the configurator to read.
 
@@ -56,7 +54,17 @@ The daemon SHALL translate every hardware event into execution of a specific scr
 - **THEN** the daemon completes the swipe from accumulated coordinates rather than waiting for a SHORT event
 
 ### Requirement: Script Execution Model
-The daemon SHALL execute action scripts detached: `subprocess.Popen` with `start_new_session=True`, never waiting for completion. If the target script does not exist, the daemon SHALL create it from a template (bash shebang plus a `notify-send` of the action description) and mark it 0755. If the script exists but is not executable, the daemon chmods it to 0755 before running.
+
+The daemon SHALL execute action scripts detached: `subprocess.Popen` with
+`start_new_session=True`, never waiting for completion, with `SDP_HOME` set
+to the repo root in the child environment. If the target script does not
+exist, the daemon SHALL create it from a template (bash shebang plus a
+`notify-send` of the action description) and mark it 0755. If the script
+exists but is not executable, the daemon chmods it to 0755 before running.
+
+#### Scenario: Action script reads SDP_HOME
+- **WHEN** any action script runs `echo "$SDP_HOME"`
+- **THEN** it prints the repo root, letting it source lib/sdp-helpers.sh
 
 #### Scenario: Unassigned control is used
 - **WHEN** a button with no script is pressed
@@ -88,8 +96,29 @@ The daemon SHALL read display brightness from a `.brightness` file in the projec
 - **THEN** the daemon detects the mtime change within ~0.5 s and applies the new brightness without restart
 
 ### Requirement: Logging
-The daemon SHALL log all activity at INFO level both to stdout and to `daemon.log` in the project root. The log file is appended forever with no rotation or size cap (it has grown past 200 MB in practice).
+
+The daemon SHALL log at INFO level to stdout (journal-friendly) and to
+`logs/daemon.log` via a rotating handler (10 MB per file, 3 backups).
+Per-poll-iteration messages SHALL be DEBUG level. Nothing writes an
+unbounded log file.
 
 #### Scenario: Long-running daemon
-- **WHEN** the daemon runs for weeks with frequent events and file polling
-- **THEN** `daemon.log` grows unboundedly; nothing in the system truncates it
+- **WHEN** the daemon runs for weeks with frequent events
+- **THEN** logs/ never exceeds ~40 MB across daemon.log and its 3 backups
+
+### Requirement: Python Package Structure
+
+The daemon SHALL be organized as the `streamdeckpro` package (config,
+logging_setup, rendering, events, actions, device, watcher, daemon modules)
+runnable via `python -m streamdeckpro`. The legacy entry point
+streamdeck-daemon.py SHALL remain as a shim delegating to the package so
+`start`, `stop`, and existing systemd units work unchanged.
+
+#### Scenario: legacy entry point still works
+- **WHEN** `./start` runs after the split
+- **THEN** the daemon starts exactly as before and `./stop` stops it
+
+#### Scenario: package is importable and tested
+- **WHEN** `python -m pytest tests/ -q` runs
+- **THEN** all tests pass with no device attached
+

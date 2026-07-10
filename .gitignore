@@ -66,3 +66,6 @@ dist/
 # Local backup and archived docs
 custom-scripts-backup/
 docs/archive/
+
+# Configurator runtime lock
+.configurator.lock

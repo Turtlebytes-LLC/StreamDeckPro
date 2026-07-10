@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  StreamDeckPro - Linux automation system for the Elgato Stream Deck Plus.
+  Currently WORKING in production on Zach's desk - do not break it.
+
+  Vision: become THE go-to open-source Stream Deck management tool for Linux -
+  beautiful, super functional, and easy to adopt (think "the Home Assistant of
+  Stream Deck on Linux").
+
+  Architecture (current):
+  - streamdeck-daemon.py (~56K, Python 3.8+) - single-file daemon using the
+    python-elgato-streamdeck library. Handles 8 LCD buttons, 4 rotary dials,
+    4 touchscreen zones (50 total actions). Hot-reloads via 0.5s file polling.
+  - Actions are plain executable bash scripts in buttons/, dials/, touchscreen/.
+    Convention: <element>-<n>[-<action>].sh + optional .png image + .txt label.
+    No JSON config - the filesystem IS the config.
+  - configurator-electron/ - Electron GUI configurator (drag & drop .desktop
+    files, icon library of 4000+ icons, brightness slider, macro stepper UI).
+  - examples/ - 135+ ready-made action scripts (general + dev-actions/).
+  - Systemd user service integration, udev rules for USB permissions,
+    auto-reconnect on KVM switch / USB re-plug.
+  - Listeners: volume/mute/CPU status shell listeners update touch zone images
+    via ImageMagick-generated PNGs.
+
+  Conventions:
+  - Bash scripts for actions, Python for the daemon and image generation.
+  - Match existing shell/Python style in sibling files.
+  - Runs on Linux (Ubuntu primary, Arch secondary). X11 and Wayland supported.
+  - Logging via systemd journal (journalctl --user -u streamdeck).
+
+  Known debt (upgrade targets):
+  - Monolithic 56K single-file daemon.
+  - daemon.log grew to 238M (no rotation).
+  - StreamDeckPro.old/ and custom-scripts-backup/ are legacy snapshots.
+  - Docs sprawl: many overlapping markdown files in root and docs/.
+  - Only tested on Stream Deck Plus; other Elgato models unsupported.
+
+rules:
+  # Artifacts are written by a strong model but IMPLEMENTED by a cheaper model.
+  # Every artifact must be self-contained: an implementer with zero project
+  # context should never need to explore, guess, or make design decisions.
+  proposal:
+    - Always include a "Non-goals" section
+    - State how the change keeps the currently-working daemon usable during migration
+  design:
+    - Every change must plan cleanup - superseded scripts, dead code, and legacy
+      snapshots it touches get removed, and duplicated logic gets unified into
+      shared modules, not copied again
+    - Make every decision explicit - the implementer decides nothing
+    - Name exact files, functions, and signatures to create or modify
+    - Include code sketches for anything non-obvious
+    - List gotchas and failure modes the implementer must avoid
+  specs:
+    - Every scenario must be mechanically checkable (a command to run, output to expect)
+  tasks:
+    - Each task names the exact file(s) it touches
+    - Each task is completable without reading other artifacts or exploring the repo
+    - Every task ends with a verify step (exact command + expected result)
+    - Order tasks so the daemon stays working after every single task

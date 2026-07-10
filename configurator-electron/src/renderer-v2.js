@@ -11,6 +11,47 @@ let pendingScriptAssignment = null;
 let cpuChart = null;
 let cpuData = [];
 
+// ── Inline SVG icon set (Lucide-style, themable via currentColor) ──────────
+function svgIcon(inner, sw = 2) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+}
+const ACTION_ICONS = {
+  examples: svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/>'),
+  dev:      svgIcon('<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>'),
+  buttons:  svgIcon('<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="2.5"/>'),
+  dials:    svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 3v4"/>'),
+  touch:    svgIcon('<path d="M8 13V5a2 2 0 0 1 4 0v6"/><path d="M12 11V4a2 2 0 0 1 4 0v7"/><path d="M16 11.5V9a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6h-2a6 6 0 0 1-5.66-4L5 13a2 2 0 0 1 3.5-2"/>'),
+};
+function actionIcon(category) { return ACTION_ICONS[category] || ACTION_ICONS.examples; }
+
+const EMPTY_ICONS = {
+  search: svgIcon('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', 1.7),
+  error:  svgIcon('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/>', 1.7),
+  folder: svgIcon('<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>', 1.7),
+};
+
+// ── Live daemon/device status chip in the header ──────────────────────────
+async function updateDeviceStatus() {
+  const chip = document.getElementById('device-status-chip');
+  const text = document.getElementById('device-status-text');
+  if (!chip || !text) return;
+  try {
+    const res = await window.api.execCommand('systemctl --user is-active streamdeck 2>/dev/null || echo inactive');
+    const active = res && res.success && (res.stdout || '').trim() === 'active';
+    if (active) {
+      const name = (device && (device.device_type || device.deviceType)) || 'Stream Deck';
+      chip.className = 'status-chip connected';
+      text.innerHTML = `Connected&nbsp;&middot;&nbsp;<span class="dev-name">${name}</span>`;
+    } else {
+      chip.className = 'status-chip disconnected';
+      text.textContent = 'Daemon offline';
+    }
+  } catch (e) {
+    chip.className = 'status-chip disconnected';
+    text.textContent = 'Status unknown';
+  }
+}
+
 // Initialize the application
 async function init() {
   console.log('Initializing Stream Deck Configurator...');
@@ -49,6 +90,10 @@ async function init() {
     loadActions();
     console.log('Actions loaded');
 
+    // Live daemon status chip (poll every 5s)
+    updateDeviceStatus();
+    setInterval(updateDeviceStatus, 5000);
+
     showToast('Stream Deck configurator ready!', 'success');
   } catch (error) {
     console.error('Initialization error:', error);
@@ -60,7 +105,7 @@ async function init() {
     if (preview) {
       preview.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">⚠️</div>
+          <div class="empty-state-icon">${EMPTY_ICONS.error}</div>
           <div class="empty-state-title">Initialization Error</div>
           <div class="empty-state-description">${error.message}</div>
           <div class="empty-state-description" style="margin-top: 16px; font-size: 12px; color: #666;">
@@ -330,9 +375,9 @@ async function showDialPanel(num) {
   const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
   
   const dialActions = [
-    { key: 'cw', name: 'Rotate Clockwise', icon: '↻', color: 'blue' },
-    { key: 'ccw', name: 'Rotate Counter-Clockwise', icon: '↺', color: 'green' },
-    { key: 'press', name: 'Press', icon: '⬇', color: 'amber' },
+    { key: 'cw', name: 'Rotate Clockwise', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>', color: 'blue' },
+    { key: 'ccw', name: 'Rotate Counter-Clockwise', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>', color: 'green' },
+    { key: 'press', name: 'Press', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>', color: 'amber' },
     { key: 'longpress', name: 'Long Press', icon: '⏱', color: 'red' }
   ];
   
@@ -351,7 +396,7 @@ async function showDialPanel(num) {
     };
     
     html += `
-      <div class="pt-4 ${action.key !== 'cw' ? 'border-t border-[#3a3a3a]' : ''}">
+      <div class="pt-4 ${action.key !== 'cw' ? 'border-t border-[#232c3a]' : ''}">
         <div class="flex items-center gap-2 mb-3">
           <span class="text-2xl">${action.icon}</span>
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
@@ -361,7 +406,7 @@ async function showDialPanel(num) {
           id="dial-${action.key}-script"
           readonly
           value="${scriptName}"
-          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+          class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
         >
         <div class="grid grid-cols-3 gap-2">
           <button
@@ -379,7 +424,7 @@ async function showDialPanel(num) {
           </button>
           <button
             onclick="clearDialScript('${num}', '${action.key}')"
-            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            class="bg-[#171d28] hover:bg-[#232c3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#232c3a]"
             ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
           >
             Clear
@@ -390,10 +435,10 @@ async function showDialPanel(num) {
   }
   
   html += `
-    <div class="pt-4 border-t border-[#3a3a3a]">
+    <div class="pt-4 border-t border-[#232c3a]">
       <button
         onclick="closeDialPanel()"
-        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+        class="w-full bg-[#232c3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
       >
         Close
       </button>
@@ -407,7 +452,7 @@ async function showButtonPanel(num) {
   const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
   
   const buttonActions = [
-    { key: '', name: 'Press', icon: '👆', color: 'blue' },
+    { key: '', name: 'Press', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M8 13V5a2 2 0 0 1 4 0v6"/><path d="M12 11V4a2 2 0 0 1 4 0v7"/><path d="M16 11.5V9a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6h-2a6 6 0 0 1-5.66-4L5 13a2 2 0 0 1 3.5-2"/></svg>', color: 'blue' },
     { key: '-longpress', name: 'Long Press', icon: '⏱', color: 'purple' }
   ];
   
@@ -416,12 +461,12 @@ async function showButtonPanel(num) {
   const imagePath = await findImageFile(`${dirs.buttons}/button-${num}`);
   const imagePreview = imagePath ? 
     `<img src="${(await window.api.readImageBase64(imagePath)).data}" style="width: 100%; height: 100%; object-fit: cover;">` :
-    '<span style="font-size: 48px;">🎛️</span>';
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#4b5a6e" stroke-width="1.5" style="width:44px;height:44px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>';
   
   html += `
     <div>
       <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Display Image</label>
-      <div class="w-full aspect-square bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] flex items-center justify-center mb-3 overflow-hidden">
+      <div class="w-full aspect-square bg-[#171d28] rounded-lg border-2 border-[#232c3a] flex items-center justify-center mb-3 overflow-hidden">
         ${imagePreview}
       </div>
       <div class="grid grid-cols-3 gap-2">
@@ -431,7 +476,7 @@ async function showButtonPanel(num) {
         <button onclick="selectButtonIcon(${num})" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
           Icons
         </button>
-        <button onclick="clearButtonImage(${num})" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+        <button onclick="clearButtonImage(${num})" class="bg-[#171d28] hover:bg-[#232c3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#232c3a]">
           Clear
         </button>
       </div>
@@ -449,7 +494,7 @@ async function showButtonPanel(num) {
     };
     
     html += `
-      <div class="pt-4 border-t border-[#3a3a3a]">
+      <div class="pt-4 border-t border-[#232c3a]">
         <div class="flex items-center gap-2 mb-3">
           <span class="text-2xl">${action.icon}</span>
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
@@ -458,7 +503,7 @@ async function showButtonPanel(num) {
           type="text"
           readonly
           value="${scriptName}"
-          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+          class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
         >
         <div class="grid grid-cols-3 gap-2">
           <button
@@ -476,7 +521,7 @@ async function showButtonPanel(num) {
           </button>
           <button
             onclick="clearButtonScript('${num}', '${action.key}')"
-            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            class="bg-[#171d28] hover:bg-[#232c3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#232c3a]"
             ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
           >
             Clear
@@ -491,24 +536,24 @@ async function showButtonPanel(num) {
     (await window.api.readFile(labelPath)).content.trim() : '';
   
   html += `
-    <div class="pt-4 border-t border-[#3a3a3a]">
+    <div class="pt-4 border-t border-[#232c3a]">
       <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Text</label>
       <input
         type="text"
         id="button-label-${num}"
         value="${labelValue}"
         placeholder="Optional label text"
-        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
       >
       <button onclick="saveButtonLabel(${num})" class="w-full mt-3 bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors">
         Save Label
       </button>
     </div>
     
-    <div class="pt-4 border-t border-[#3a3a3a]">
+    <div class="pt-4 border-t border-[#232c3a]">
       <button
         onclick="closeButtonPanel()"
-        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+        class="w-full bg-[#232c3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
       >
         Close
       </button>
@@ -522,12 +567,12 @@ async function showTouchPanel(num) {
   const panelContent = document.querySelector('#element-panel .p-5.space-y-6');
   
   const touchActions = [
-    { key: '', name: 'Tap', icon: '👆', color: 'blue' },
+    { key: '', name: 'Tap', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M8 13V5a2 2 0 0 1 4 0v6"/><path d="M12 11V4a2 2 0 0 1 4 0v7"/><path d="M16 11.5V9a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6h-2a6 6 0 0 1-5.66-4L5 13a2 2 0 0 1 3.5-2"/></svg>', color: 'blue' },
     { key: '-longpress', name: 'Long Press', icon: '⏱', color: 'purple' },
-    { key: '-swipe-up', name: 'Swipe Up', icon: '⬆️', color: 'green' },
-    { key: '-swipe-down', name: 'Swipe Down', icon: '⬇️', color: 'green' },
-    { key: '-swipe-left', name: 'Swipe Left', icon: '⬅️', color: 'amber' },
-    { key: '-swipe-right', name: 'Swipe Right', icon: '➡️', color: 'amber' }
+    { key: '-swipe-up', name: 'Swipe Up', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>', color: 'green' },
+    { key: '-swipe-down', name: 'Swipe Down', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>', color: 'green' },
+    { key: '-swipe-left', name: 'Swipe Left', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>', color: 'amber' },
+    { key: '-swipe-right', name: 'Swipe Right', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>', color: 'amber' }
   ];
   
   let html = '';
@@ -535,12 +580,12 @@ async function showTouchPanel(num) {
   const imagePath = await findImageFile(`${dirs.touch}/touch-${num}`);
   const imagePreview = imagePath ? 
     `<img src="${(await window.api.readImageBase64(imagePath)).data}" style="width: 100%; height: 100%; object-fit: cover;">` :
-    '<span style="font-size: 48px;">📱</span>';
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#4b5a6e" stroke-width="1.5" style="width:44px;height:44px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>';
   
   html += `
     <div>
       <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Display Image</label>
-      <div class="w-full aspect-[2/1] bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] flex items-center justify-center mb-3 overflow-hidden">
+      <div class="w-full aspect-[2/1] bg-[#171d28] rounded-lg border-2 border-[#232c3a] flex items-center justify-center mb-3 overflow-hidden">
         ${imagePreview}
       </div>
       <div class="grid grid-cols-3 gap-2">
@@ -550,7 +595,7 @@ async function showTouchPanel(num) {
         <button onclick="selectTouchIcon(${num})" class="bg-purple-600 hover:bg-purple-700 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
           Icons
         </button>
-        <button onclick="clearTouchImage(${num})" class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]">
+        <button onclick="clearTouchImage(${num})" class="bg-[#171d28] hover:bg-[#232c3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#232c3a]">
           Clear
         </button>
       </div>
@@ -570,7 +615,7 @@ async function showTouchPanel(num) {
     };
     
     html += `
-      <div class="pt-4 border-t border-[#3a3a3a]">
+      <div class="pt-4 border-t border-[#232c3a]">
         <div class="flex items-center gap-2 mb-3">
           <span class="text-2xl">${action.icon}</span>
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${action.name}</label>
@@ -579,7 +624,7 @@ async function showTouchPanel(num) {
           type="text"
           readonly
           value="${scriptName}"
-          class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
+          class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm mb-3 cursor-default"
         >
         <div class="grid grid-cols-3 gap-2">
           <button
@@ -597,7 +642,7 @@ async function showTouchPanel(num) {
           </button>
           <button
             onclick="clearTouchScript('${num}', '${action.key}')"
-            class="bg-[#2b2b2b] hover:bg-[#3a3a3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a]"
+            class="bg-[#171d28] hover:bg-[#232c3a] px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#232c3a]"
             ${!scriptExists ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
           >
             Clear
@@ -612,24 +657,24 @@ async function showTouchPanel(num) {
     (await window.api.readFile(labelPath)).content.trim() : '';
   
   html += `
-    <div class="pt-4 border-t border-[#3a3a3a]">
+    <div class="pt-4 border-t border-[#232c3a]">
       <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Label Text</label>
       <input
         type="text"
         id="touch-label-${num}"
         value="${labelValue}"
         placeholder="Optional label text"
-        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
       >
       <button onclick="saveTouchLabel(${num})" class="w-full mt-3 bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors">
         Save Label
       </button>
     </div>
     
-    <div class="pt-4 border-t border-[#3a3a3a]">
+    <div class="pt-4 border-t border-[#232c3a]">
       <button
         onclick="closeTouchPanel()"
-        class="w-full bg-[#3a3a3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
+        class="w-full bg-[#232c3a] hover:bg-[#404040] px-4 py-3 rounded-lg font-semibold transition-colors"
       >
         Close
       </button>
@@ -654,7 +699,7 @@ async function loadElementConfig(type, num) {
       imagePreview.innerHTML = `<img src="${result.data}" style="width: 100%; height: 100%; object-fit: cover;">`;
     }
   } else {
-    imagePreview.innerHTML = '<span style="font-size: 48px;">🎛️</span>';
+    imagePreview.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#4b5a6e" stroke-width="1.5" style="width:44px;height:44px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>';
   }
 
   // Load script
@@ -835,7 +880,7 @@ async function showIconLibrary(category = null, color = null) {
       if (!result.success || !result.files || result.files.length === 0) {
         iconGrid.innerHTML = `
           <div class="col-span-6 text-center py-8 text-gray-400">
-            <div class="text-4xl mb-2">📁</div>
+            <div class="mb-2" style="display:flex;justify-content:center;color:#4b5a6e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg></div>
             <div>No icons found</div>
             <div class="text-sm mt-2">Add PNG/SVG files to: ${dirs.icons}</div>
           </div>
@@ -894,7 +939,7 @@ async function showIconLibrary(category = null, color = null) {
   if (filteredIcons.length === 0) {
     iconGrid.innerHTML = `
       <div class="col-span-6 text-center py-8 text-gray-400">
-        <div class="text-4xl mb-2">🖼️</div>
+        <div class="mb-2" style="display:flex;justify-content:center;color:#4b5a6e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></div>
         <div>No icons match these filters</div>
       </div>
     `;
@@ -908,7 +953,7 @@ async function showIconLibrary(category = null, color = null) {
   for (const file of filteredIcons) {
     const iconPath = `${dirs.icons}/${file}`;
     const iconItem = document.createElement('div');
-    iconItem.className = 'aspect-square bg-[#2b2b2b] rounded border-2 border-[#3a3a3a] hover:border-blue-500 cursor-pointer transition-all flex items-center justify-center overflow-hidden p-2';
+    iconItem.className = 'aspect-square bg-[#171d28] rounded border-2 border-[#232c3a] hover:border-blue-500 cursor-pointer transition-all flex items-center justify-center overflow-hidden p-2';
 
     try {
       const imageResult = await window.api.readImageBase64(iconPath);
@@ -918,10 +963,10 @@ async function showIconLibrary(category = null, color = null) {
         img.className = 'w-full h-full object-contain';
         iconItem.appendChild(img);
       } else {
-        iconItem.innerHTML = '<span class="text-2xl">📄</span>';
+        iconItem.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
       }
     } catch (error) {
-      iconItem.innerHTML = '<span class="text-2xl">❌</span>';
+      iconItem.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M18 6 6 18M6 6l12 12"/></svg>';
     }
 
     iconItem.title = file;
@@ -1529,7 +1574,6 @@ async function loadActions(filter = 'all') {
           for (const file of scriptFiles) {
             const name = file.replace('.sh', '').replace(/-/g, ' ');
             allActions.push({
-              icon: '📜',
               title: name,
               description: 'Example script',
               category: 'examples',
@@ -1549,7 +1593,6 @@ async function loadActions(filter = 'all') {
             for (const file of devScripts) {
               const name = file.replace('.sh', '').replace(/-/g, ' ');
               allActions.push({
-                icon: '💻',
                 title: name,
                 description: 'Developer action',
                 category: 'dev',
@@ -1570,7 +1613,6 @@ async function loadActions(filter = 'all') {
         for (const file of scriptFiles) {
           const name = file.replace('.sh', '').replace('button-', 'Button ');
           allActions.push({
-            icon: '🔘',
             title: name,
             description: 'Configured button',
             category: 'buttons',
@@ -1589,7 +1631,6 @@ async function loadActions(filter = 'all') {
         for (const file of scriptFiles) {
           const name = file.replace('.sh', '').replace('dial-', 'Dial ').replace(/-/g, ' ');
           allActions.push({
-            icon: '⚙️',
             title: name,
             description: 'Configured dial',
             category: 'dials',
@@ -1608,7 +1649,7 @@ async function loadActions(filter = 'all') {
         for (const file of scriptFiles) {
           const name = file.replace('.sh', '').replace('touch-', 'Touch ').replace(/-/g, ' ');
           allActions.push({
-            icon: '👆',
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M8 13V5a2 2 0 0 1 4 0v6"/><path d="M12 11V4a2 2 0 0 1 4 0v7"/><path d="M16 11.5V9a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6h-2a6 6 0 0 1-5.66-4L5 13a2 2 0 0 1 3.5-2"/></svg>',
             title: name,
             description: 'Configured touch zone',
             category: 'touch',
@@ -1626,7 +1667,7 @@ async function loadActions(filter = 'all') {
     if (filteredActions.length === 0) {
       actionsList.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-icon">${EMPTY_ICONS.search}</div>
           <div class="empty-state-title">No scripts found</div>
           <div class="empty-state-description">Add .sh files to the examples/ directory</div>
         </div>
@@ -1643,12 +1684,12 @@ async function loadActions(filter = 'all') {
       item.dataset.scriptPath = action.path;
 
       item.innerHTML = `
-        <div class="action-icon">${action.icon}</div>
+        <div class="action-icon cat-${action.category}">${actionIcon(action.category)}</div>
         <div class="action-info">
           <div class="action-title">${action.title}</div>
           <div class="action-description">${action.description}</div>
         </div>
-        <button class="preview-script-btn px-3 py-1.5 bg-[#2b2b2b] hover:bg-[#3a3a3a] rounded text-xs transition-colors border border-[#3a3a3a]">
+        <button class="preview-script-btn px-3 py-1.5 bg-[#171d28] hover:bg-[#232c3a] rounded text-xs transition-colors border border-[#232c3a]">
           View
         </button>
       `;
@@ -1674,7 +1715,7 @@ async function loadActions(filter = 'all') {
     console.error('Error loading actions:', error);
     actionsList.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">❌</div>
+        <div class="empty-state-icon">${EMPTY_ICONS.error}</div>
         <div class="empty-state-title">Error loading scripts</div>
         <div class="empty-state-description">${error.message}</div>
       </div>
@@ -1798,7 +1839,7 @@ async function showScriptParametersModal(scriptPath, scriptType) {
       <label class="block text-xs text-gray-400 mb-2">Chrome Profile</label>
       <select
         id="param-chrome-profile"
-        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+        class="w-full bg-[#171d28] border border-[#232c3a] rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
       >
         <option value="">Loading profiles...</option>
       </select>
@@ -1814,7 +1855,7 @@ async function showScriptParametersModal(scriptPath, scriptType) {
         type="text"
         id="param-url"
         placeholder="https://example.com"
-        class="w-full bg-[#2b2b2b] border border-[#3a3a3a] rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+        class="w-full bg-[#171d28] border border-[#232c3a] rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
       >
       <div class="text-xs text-gray-500 mt-1">Full URL including https://</div>
     `;
@@ -2069,7 +2110,7 @@ async function showMacroRecorderModal(scriptPath, macroType = 'button') {
           <li>Press ESC when done to stop recording</li>
         </ul>
         <div class="bg-blue-900/20 border border-blue-500/30 rounded p-3 mt-3">
-          <div class="text-sm font-medium text-blue-300 mb-2">🎛️ Dial Controls:</div>
+          <div class="text-sm font-medium text-blue-300 mb-2">Dial Controls:</div>
           <ul class="list-disc list-inside text-blue-200 text-xs space-y-1 ml-2">
             <li><span class="font-medium">Press</span>: Play entire macro</li>
             <li><span class="font-medium">Hold</span>: Reset macro position</li>
@@ -2096,7 +2137,7 @@ async function showMacroRecorderModal(scriptPath, macroType = 'button') {
   recordingDiv.innerHTML = `
     ${instructions}
 
-    <div class="bg-[#1a1a1a] border border-[#3a3a3a] rounded p-3">
+    <div class="bg-[#1a1a1a] border border-[#232c3a] rounded p-3">
       <div id="recording-status" class="text-sm text-gray-400">
         Ready to record
       </div>
@@ -2124,7 +2165,7 @@ async function showMacroRecorderModal(scriptPath, macroType = 'button') {
     startBtn.textContent = 'Recording...';
     startBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
-    statusDiv.innerHTML = '<span class="text-yellow-400">🔴 Recording... Press ESC to stop</span>';
+    statusDiv.innerHTML = '<span class="text-yellow-400"><span style="color:#ef4444">●</span> Recording... Press ESC to stop</span>';
 
     try {
       // Start recording with element type (button or dial)
@@ -2553,7 +2594,7 @@ function initCpuChart() {
             }
           },
           grid: {
-            color: '#3a3a3a',
+            color: '#232c3a',
             drawBorder: false
           }
         }
@@ -2678,6 +2719,10 @@ async function loadIconLibrary() {
   }
 }
 
+// Color filters are rendered together with category filters in renderIconFilters();
+// this stub exists so legacy call sites don't throw a ReferenceError.
+function renderIconColorFilters() {}
+
 function renderIconFilters() {
   const categoryContainer = document.getElementById('icon-category-filters');
   const colorContainer = document.getElementById('icon-color-filters');
@@ -2688,8 +2733,8 @@ function renderIconFilters() {
   colorContainer.innerHTML = '';
   
   const btnClass = 'px-3 py-1.5 text-xs rounded transition-colors font-medium';
-  const activeClass = 'bg-purple-600 text-white shadow-lg';
-  const inactiveClass = 'bg-[#2b2b2b] hover:bg-[#3a3a3a] text-gray-300 border border-[#3a3a3a]';
+  const activeClass = 'bg-blue-600 text-white shadow-lg';
+  const inactiveClass = 'bg-[#171d28] hover:bg-[#232c3a] text-gray-300 border border-[#232c3a]';
   
   const allCategoryBtn = document.createElement('button');
   allCategoryBtn.textContent = `All (${iconLibraryState.allIcons.length})`;
@@ -2766,7 +2811,7 @@ function renderIconGrid() {
   
   filtered.forEach(icon => {
     const iconEl = document.createElement('div');
-    iconEl.className = 'aspect-square bg-[#2b2b2b] rounded-lg border-2 border-[#3a3a3a] hover:border-purple-500 cursor-pointer transition-all duration-200 flex items-center justify-center p-3 hover:scale-105 hover:shadow-lg';
+    iconEl.className = 'aspect-square bg-[#171d28] rounded-lg border-2 border-[#232c3a] hover:border-purple-500 cursor-pointer transition-all duration-200 flex items-center justify-center p-3 hover:scale-105 hover:shadow-lg';
     iconEl.onclick = () => selectIcon(icon);
     
     const img = document.createElement('img');

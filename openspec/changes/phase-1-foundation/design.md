@@ -203,7 +203,7 @@ spec makes it checkable):
 
 ```
 Files:   README.md  LICENSE  install.sh  start  stop  configure
-         create-action  mise.toml
+         create-action  mise.toml  streamdeck-daemon.py (shim)
 Dirs:    streamdeckpro/  buttons/  dials/  touchscreen/  examples/
          templates/  lib/  listeners/  utils/  icons/  images/  macros/
          docs/  tests/  configurator-electron/  openspec/  logs/

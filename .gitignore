@@ -8,6 +8,11 @@ __pycache__/
 .ui-config.json
 .device-info.json
 daemon.log
+logs/
+
+# Test / tooling caches
+.venv/
+.pytest_cache/
 
 # Downloaded icons (user downloads separately)
 icons/

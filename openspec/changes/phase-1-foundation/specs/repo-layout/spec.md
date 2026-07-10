@@ -5,17 +5,18 @@
 ### Requirement: Minimal Root Whitelist
 
 The repo root SHALL contain only user-facing entry points (install.sh,
-start, stop, configure, create-action), README.md, LICENSE, mise.toml, and
-the directories streamdeckpro/, buttons/, dials/, touchscreen/, examples/,
-templates/, lib/, listeners/, utils/, icons/, images/, macros/, docs/,
-tests/, configurator-electron/, openspec/, logs/, plus dotfiles
-(.brightness, .device-info.json, .gitignore, .github/, .claude/,
-.opencode/ and tool caches). Helper tools live in utils/; documentation
-lives in docs/.
+start, stop, configure, create-action), the legacy daemon entry-point shim
+streamdeck-daemon.py (required by daemon-core so start/stop/systemd work
+unchanged), README.md, LICENSE, mise.toml, and the directories
+streamdeckpro/, buttons/, dials/, touchscreen/, examples/, templates/, lib/,
+listeners/, utils/, icons/, images/, macros/, docs/, tests/,
+configurator-electron/, openspec/, logs/, plus dotfiles (.brightness,
+.device-info.json, .gitignore, .github/, .claude/, .opencode/ and tool
+caches). Helper tools live in utils/; documentation lives in docs/.
 
 #### Scenario: root is clean
 - **WHEN** `ls` runs in the repo root after phase 1
-- **THEN** every visible entry is on the whitelist above; in particular no setup-*.sh, no *.py, no *.log, and no markdown besides README.md exist at the root
+- **THEN** every visible entry is on the whitelist above; in particular no setup-*.sh, no *.py besides the streamdeck-daemon.py shim, no *.log, and no markdown besides README.md exist at the root
 
 ### Requirement: Moves Never Orphan References
 

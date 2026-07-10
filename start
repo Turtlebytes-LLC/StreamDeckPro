@@ -7,10 +7,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check if daemon is already running
-if pgrep -f "streamdeck-daemon.py" > /dev/null; then
+# Check if daemon is already running (manual shim or systemd module form)
+if pgrep -f "streamdeck-daemon\.py|streamdeckpro" > /dev/null; then
     echo "Stream Deck daemon is already running."
-    echo "To restart: pkill -f streamdeck-daemon.py && ./start"
+    echo "To restart: ./stop && ./start"
     exit 1
 fi
 
@@ -41,13 +41,13 @@ if lsusb 2>/dev/null | grep -q "0fd9"; then
         echo "⚠ Warning: Stream Deck detected but USB permissions may be an issue"
         echo ""
         echo "If the daemon fails to start, run:"
-        echo "  ./fix-permissions-now.sh"
+        echo "  ./install.sh doctor"
         echo ""
     elif ! ls -l /dev/hidraw* 2>/dev/null | grep -q "plugdev\|dialout\|users"; then
         echo "⚠ Note: USB permissions not optimal"
         echo ""
         echo "For permanent fix, run once:"
-        echo "  ./setup-udev-rules.sh"
+        echo "  ./install.sh udev"
         echo ""
     fi
 fi

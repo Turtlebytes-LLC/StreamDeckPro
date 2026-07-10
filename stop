@@ -8,9 +8,9 @@ cd "$SCRIPT_DIR"
 
 echo "Stopping Stream Deck daemon..."
 
-# Stop the daemon
-if pgrep -f "streamdeck-daemon.py" > /dev/null; then
-    pkill -f "streamdeck-daemon.py"
+# Stop the daemon (manual shim or systemd module form)
+if pgrep -f "streamdeck-daemon\.py|streamdeckpro" > /dev/null; then
+    pkill -f "streamdeck-daemon\.py|streamdeckpro"
     echo "Daemon stopped"
 else
     echo "Daemon is not running"

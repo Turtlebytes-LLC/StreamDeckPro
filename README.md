@@ -74,30 +74,19 @@
 
 ## 🚀 Quick Start
 
-### Installation
+Three steps: clone, run the installer, launch the configurator.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Turtlebytes-LLC/StreamDeckPro.git
 cd StreamDeckPro
-
-# Install Python dependencies
-pip3 install --user streamdeck
-
-# Make scripts executable
-chmod +x start configure create-action streamdeck-daemon.py
-
-# Start the daemon
-./start
-```
-
-### Launch Configurator v2
-
-```bash
+./install.sh
 ./configure
 ```
 
-**The new configurator offers:**
+`./install.sh` runs a guided setup (dependencies, USB permissions, autostart,
+and status listeners). Run `./install.sh doctor` any time to check your setup.
+
+**The configurator offers:**
 - 🎯 Visual Stream Deck preview with buttons, dials, and touchscreen
 - 📜 Browse 135+ example scripts with instant preview
 - 🖼️ Icon library with 2000+ icons, filterable by category and color

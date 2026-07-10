@@ -1,0 +1,15 @@
+[Unit]
+Description=Stream Deck status listener (%i)
+Documentation=file:///home/zach2825/Nextcloud/StreamDeckPro/docs/README.md
+After=graphical-session.target streamdeck.service
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+# Instance name is "<kind>:<zone>", e.g. volume:1, mute:2, cpu:4
+ExecStart=/home/zach2825/Nextcloud/StreamDeckPro/listeners/status-listener.sh %i
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

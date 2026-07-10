@@ -11,6 +11,7 @@ guides live in `docs/archive/`.
 
 ## Using the device
 - [ALL-GESTURES.md](ALL-GESTURES.md) - Complete gesture reference (buttons, dials, touch zones, swipes).
+- [WRITING-ACTIONS.md](WRITING-ACTIONS.md) - Author action scripts: the element->file contract, sdp-helpers API, and templates.
 - [COMPLETE-SYSTEM.txt](COMPLETE-SYSTEM.txt) - End-to-end system overview.
 - [MEMORY.md](MEMORY.md) - Configuration patterns, conventions, and notes.
 

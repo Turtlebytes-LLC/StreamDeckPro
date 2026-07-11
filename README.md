@@ -1,9 +1,30 @@
 # 🎛️ Stream Deck Plus - Complete Action System
 
-> Transform your Elgato Stream Deck Plus into a powerful automation tool with 50 customizable actions, beautiful UI configuration, and macro recording capabilities.
+> Transform your Elgato Stream Deck into a powerful Linux automation tool - profiles, widgets, a beautiful UI configurator, and macro recording. Built for the Plus, now driving Mini, Original, MK.2, XL, and Neo too.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
+## 🆕 What's New - v2.1
+
+**Profiles, more devices, widgets, and sharing.**
+
+- 🗂️ **Profiles & pages** - switch your whole layout per app or context. `default` is the top-level layout; named profiles live in `profiles/<name>/`. Manage them right in the configurator (Profile dropdown → + / switch / delete) or from the CLI. See [docs/PROFILES.md](docs/PROFILES.md).
+- 🎛️ **Multi-device** - drives Mini, Original, MK.2, XL, and Neo, not just the Plus. Dial-less / touchscreen-less models are handled automatically.
+- 🔀 **App-aware auto-switching** - optional sidecar maps the focused window to a profile (Hyprland + X11).
+- ⏱️ **Widgets** - dependency-free clock and system-stats tiles for the touch bar. See [docs/BEAUTY.md](docs/BEAUTY.md).
+- 🖼️ **Icon packs** - a simple `pack.json` format; the built-in set is the `builtin` pack.
+- 🎞️ **Animated icons** - GIF/WebP keys show their first frame today (frame cycling is on the roadmap).
+- 📦 **Profile sharing** - export/import a profile as a portable `.sdpack`. See [docs/SHARING.md](docs/SHARING.md).
+
+```bash
+./install.sh profile create work     # scaffold profiles/work/
+./install.sh profile use work        # switch (daemon hot-reloads)
+./install.sh profile export work     # -> work.sdpack (share it)
+./install.sh profile import work.sdpack --as work2
+```
+
+Your existing setup is untouched: with no profile selected, everything behaves exactly as before.
 
 ## 🎉 What's New - February 2026
 
@@ -403,6 +424,12 @@ Or view logs directly from the configurator's Settings panel with one click.
 - **[TESTING.md](TESTING.md)** - Test all the new improvements (KVM switch, USB re-plug, etc.)
 - **[docs/START-HERE.md](docs/START-HERE.md)** - Quick start guide
 - **[docs/QUICK-START.txt](docs/QUICK-START.txt)** - 5-minute setup guide
+
+### v2.1 Features
+- **[docs/PROFILES.md](docs/PROFILES.md)** - Profiles, pages, hot-reload, and app-aware switching
+- **[docs/BEAUTY.md](docs/BEAUTY.md)** - Icon packs, animated icons, and touch-bar widgets
+- **[docs/PLUGINS.md](docs/PLUGINS.md)** - Long-running actions and the plugin feedback path
+- **[docs/SHARING.md](docs/SHARING.md)** - Export and import profiles as .sdpack
 
 ### Improvements & Changes
 - **[docs/TODAYS-ACCOMPLISHMENTS.md](docs/TODAYS-ACCOMPLISHMENTS.md)** - Summary of all improvements

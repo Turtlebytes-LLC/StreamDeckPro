@@ -311,6 +311,58 @@ do_guided() {
     echo "${C_BOLD}Setup finished. Run './install.sh doctor' any time to check health.${C_RESET}"
 }
 
+# --- profiles ----------------------------------------------------------------
+
+# do_profile [list|create <name>|use <name>] - manage layout profiles.
+# The 'default' profile is the legacy top-level buttons/dials/touchscreen dirs;
+# named profiles live under profiles/<name>/ with the same structure.
+do_profile() {
+    local action="${1:-list}"
+    local name="${2:-}"
+    local profiles_dir="$SCRIPT_DIR/profiles"
+    local profile_file="$SCRIPT_DIR/.profile"
+
+    case "$action" in
+        list)
+            step "Profiles"
+            local active="default"
+            [ -f "$profile_file" ] && active="$(tr -d '[:space:]' < "$profile_file")"
+            [ -z "$active" ] && active="default"
+            local marker
+            for p in default $( [ -d "$profiles_dir" ] && find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort ); do
+                if [ "$p" = "$active" ]; then marker="* "; else marker="  "; fi
+                info "$marker$p"
+            done
+            ;;
+        create)
+            [ -z "$name" ] && { fail "usage: ./install.sh profile create <name>"; return 1; }
+            [ "$name" = "default" ] && { fail "'default' is the top-level layout; pick another name"; return 1; }
+            mkdir -p "$profiles_dir/$name/buttons" "$profiles_dir/$name/dials" "$profiles_dir/$name/touchscreen"
+            pass "created profile '$name' at profiles/$name/"
+            info "Switch to it with: ./install.sh profile use $name"
+            ;;
+        use)
+            [ -z "$name" ] && { fail "usage: ./install.sh profile use <name>"; return 1; }
+            if [ "$name" != "default" ] && [ ! -d "$profiles_dir/$name" ]; then
+                fail "no such profile: $name (create it first)"; return 1
+            fi
+            printf '%s' "$name" > "$profile_file"
+            pass "active profile is now '$name' (daemon hot-reloads)"
+            ;;
+        export)
+            [ -z "$name" ] && { fail "usage: ./install.sh profile export <name> [file.sdpack]"; return 1; }
+            python3 -m streamdeckpro.sharing export "$name" "${3:-$name.sdpack}"
+            ;;
+        import)
+            [ -z "$name" ] && { fail "usage: ./install.sh profile import <file.sdpack> [--as name]"; return 1; }
+            shift 2
+            python3 -m streamdeckpro.sharing import "$name" "$@"
+            ;;
+        *)
+            fail "unknown profile action: $action (use list|create|use|export|import)"; return 1 ;;
+    esac
+}
+
 show_help() {
     cat << EOF
 StreamDeckPro installer
@@ -326,6 +378,7 @@ Subcommands:
   all         run deps, udev, autostart, listeners (use --yes for non-interactive)
   uninstall   remove autostart, listeners, and legacy units
   doctor      diagnose the setup without changing anything
+  profile     manage layout profiles: profile [list|create <name>|use <name>|export <name>|import <file>]
   help        show this message
 EOF
 }
@@ -350,6 +403,7 @@ case "$CMD" in
     all)         do_deps; do_udev; do_autostart; do_listeners ;;
     uninstall)   do_uninstall ;;
     doctor)      do_doctor ;;
+    profile)     shift; do_profile "$@" ;;
     help|-h|--help) show_help ;;
     *) echo "Unknown subcommand: $CMD" >&2; show_help; exit 1 ;;
 esac

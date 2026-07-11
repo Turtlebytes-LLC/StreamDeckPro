@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld('api', {
   // Directory paths
   getDirectories: () => ipcRenderer.invoke('get-directories'),
 
+  // Profiles
+  listProfiles: () => ipcRenderer.invoke('list-profiles'),
+  createProfile: (name) => ipcRenderer.invoke('create-profile', name),
+  switchProfile: (name) => ipcRenderer.invoke('switch-profile', name),
+  deleteProfile: (name) => ipcRenderer.invoke('delete-profile', name),
+
   // Dialogs
   browseFile: (options) => ipcRenderer.invoke('browse-file', options),
   browseSaveFile: (options) => ipcRenderer.invoke('browse-save-file', options),

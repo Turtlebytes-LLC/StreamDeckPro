@@ -1,0 +1,10 @@
+# StreamDeckPro app-aware profile switching.
+# One rule per line:  window_class = profile
+# Find a window's class with:  hyprctl activewindow   (Hyprland)
+#                        or:   xdotool getactivewindow getwindowclassname   (X11)
+#
+# Copy to app-profiles.conf and run:  python -m streamdeckpro.appswitch
+
+firefox = web
+code    = dev
+Slack   = chat

@@ -101,9 +101,17 @@
       <!-- Profile Selector -->
       <div class="px-5 py-4 border-b border-[#232c3a]">
         <label class="section-label">Profile</label>
-        <select id="profile-selector" class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
-          <option>Default</option>
-        </select>
+        <div class="flex gap-2">
+          <select id="profile-selector" class="flex-1 bg-[#171d28] border border-[#232c3a] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer">
+            <option>Default</option>
+          </select>
+          <button id="add-profile-btn" class="header-btn" title="New profile" style="padding:0 12px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button id="delete-profile-btn" class="icon-btn danger" title="Delete profile" style="padding:0 12px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
       </div>
 
       <!-- Search Actions -->
@@ -363,6 +371,26 @@
         <button id="close-settings-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition-colors">
           Close
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Profile Modal -->
+  <div id="new-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-[#0f141b] rounded-lg shadow-2xl w-[420px] flex flex-col" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-[#232c3a] flex items-center justify-between">
+        <h3 class="font-semibold">New Profile</h3>
+        <button id="close-new-profile" class="hover:bg-[#232c3a] rounded p-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="p-6 space-y-3">
+        <label class="section-label">Profile name</label>
+        <input id="new-profile-name" type="text" placeholder="e.g. gaming"
+               class="w-full bg-[#171d28] border border-[#232c3a] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+        <div class="text-xs text-gray-500">Letters, numbers, dot, dash, underscore. Creates profiles/&lt;name&gt;/.</div>
+      </div>
+      <div class="p-4 border-t border-[#232c3a] flex justify-end gap-2">
+        <button id="cancel-new-profile" class="bg-[#171d28] hover:bg-[#232c3a] px-4 py-2 rounded text-sm transition-colors border border-[#232c3a]">Cancel</button>
+        <button id="confirm-new-profile" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm font-medium transition-colors">Create &amp; Switch</button>
       </div>
     </div>
   </div>

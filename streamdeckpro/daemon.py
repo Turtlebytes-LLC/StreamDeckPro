@@ -14,6 +14,7 @@ from .logging_setup import setup_logging
 from .device import DeviceConnection
 from .events import EventDispatcher
 from .watcher import FileWatcher
+from .profiles import ProfileManager
 
 
 class StreamDeckDaemon:
@@ -21,11 +22,12 @@ class StreamDeckDaemon:
 
     def __init__(self):
         self.config = config
+        self.paths = ProfileManager(config)
         self.running = False
 
         self.device = DeviceConnection(config)
-        self.events = EventDispatcher(config, actions.execute_script)
-        self.watcher = FileWatcher(config, self.device, redraw=self.redraw_all)
+        self.events = EventDispatcher(self.paths, actions.execute_script)
+        self.watcher = FileWatcher(self.paths, self.device, redraw=self.redraw_all)
 
         self.last_device_check = 0
         self.device_check_interval = 2.0
@@ -49,7 +51,7 @@ class StreamDeckDaemon:
             key_count = min(deck.key_count(), profile['buttons'])
             for key in range(key_count):
                 button_num = key + 1
-                img = rendering.render_button(button_num, config.BUTTONS_DIR, self.device.get_button_size())
+                img = rendering.render_button(button_num, self.paths.BUTTONS_DIR, self.device.get_button_size())
 
                 buf = BytesIO()
                 img.save(buf, format='JPEG', quality=95)
@@ -81,7 +83,7 @@ class StreamDeckDaemon:
         zone_size = self.device.get_touch_zone_size()
 
         img = rendering.compose_touchscreen(
-            self.events.touch_zones, config.TOUCH_DIR, ts_width, ts_height, zone_size
+            self.events.touch_zones, self.paths.TOUCH_DIR, ts_width, ts_height, zone_size
         )
 
         try:
@@ -195,6 +197,11 @@ class StreamDeckDaemon:
                     self.watcher.check_brightness_change()
                 except Exception as e:
                     logging.error(f"Error checking brightness: {e}")
+
+                try:
+                    self.watcher.check_profile_change()
+                except Exception as e:
+                    logging.error(f"Error checking profile: {e}")
 
                 time.sleep(0.5)
         except KeyboardInterrupt:

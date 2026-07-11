@@ -18,8 +18,9 @@ class FakeDeck:
     assert on interactions without a physical device.
     """
 
-    def __init__(self, deck_type="Stream Deck Plus"):
+    def __init__(self, deck_type="Stream Deck Plus", keys=8):
         self._deck_type = deck_type
+        self._keys = keys
         self._open = True
         self.calls = []
 
@@ -28,7 +29,7 @@ class FakeDeck:
 
     def key_count(self):
         self._record("key_count")
-        return 8
+        return self._keys
 
     def deck_type(self):
         self._record("deck_type")

@@ -82,6 +82,10 @@ async function init() {
     setupEventListeners();
     console.log('Event listeners setup');
 
+    // Load profiles into the selector
+    await loadProfiles();
+    console.log('Profiles loaded');
+
     // Load categories
     loadCategories();
     console.log('Categories loaded');
@@ -1089,8 +1093,8 @@ async function browseScript() {
 
       showToast('Script assigned!', 'success');
 
-      // Update script input
-      document.getElementById('element-script').value = destPath;
+      // Refresh the type-specific panel (no shared script input in the v2 UI).
+      if (selectedElement) await showConfigPanel(selectedElement.type, selectedElement.num);
 
       // Give daemon time to detect the change
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -1118,8 +1122,8 @@ async function clearScript() {
 
     showToast('Script cleared!', 'success');
 
-    // Update script input
-    document.getElementById('element-script').value = 'No script assigned';
+    // Refresh the type-specific panel (no shared script input in the v2 UI).
+    if (selectedElement) await showConfigPanel(selectedElement.type, selectedElement.num);
   } catch (error) {
     console.error('Clear script error:', error);
     showToast(`Error: ${error.message}`, 'error');
@@ -1505,8 +1509,8 @@ async function saveCodeEditor() {
       // Close modal
       closeCodeEditor();
 
-      // Update script input
-      document.getElementById('element-script').value = currentScriptPath;
+      // Refresh the type-specific panel (no shared script input in the v2 UI).
+      if (selectedElement) await showConfigPanel(selectedElement.type, selectedElement.num);
 
       // Give daemon time to detect the change
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -1791,11 +1795,18 @@ async function assignScriptToElement(scriptPath) {
 // Direct script assignment (no parameters needed)
 async function assignScriptDirect(scriptPath) {
   const { type, num } = selectedElement;
-  const dir = type === 'button' ? dirs.buttons : type === 'dial' ? dirs.dials : dirs.touch;
-  const prefix = type === 'button' ? 'button' : type === 'dial' ? 'dial' : 'touch';
 
   try {
-    const destPath = `${dir}/${prefix}-${num}.sh`;
+    // Dials are gesture-specific (no plain dial-N.sh); default a generic
+    // assignment to the Press gesture. Buttons/touch use their base script.
+    let destPath;
+    if (type === 'dial') {
+      destPath = `${dirs.dials}/dial-${num}-press.sh`;
+    } else if (type === 'touch') {
+      destPath = `${dirs.touch}/touch-${num}.sh`;
+    } else {
+      destPath = `${dirs.buttons}/button-${num}.sh`;
+    }
 
     await window.api.copyFile(scriptPath, destPath);
 
@@ -1805,10 +1816,11 @@ async function assignScriptDirect(scriptPath) {
       console.warn('Could not make script executable:', makeExecResult.error);
     }
 
-    showToast('Script assigned!', 'success');
+    showToast(type === 'dial' ? 'Script assigned to Press!' : 'Script assigned!', 'success');
 
-    // Update script input in config panel
-    document.getElementById('element-script').value = destPath;
+    // Refresh the type-specific config panel so it reflects the new script.
+    // (The v2 panels rebuild their own DOM, so there is no shared script input.)
+    await showConfigPanel(type, num);
 
     // Give daemon time to detect the change
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -2059,8 +2071,8 @@ esac
       // Close modal
       closeScriptParametersModal();
 
-      // Update script input in config panel
-      document.getElementById('element-script').value = destPath;
+      // Refresh the type-specific panel (no shared script input in the v2 UI).
+      if (selectedElement) await showConfigPanel(selectedElement.type, selectedElement.num);
 
       // Give daemon time to detect the change
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -2259,6 +2271,68 @@ function closeSettings() {
   }
 }
 
+// --- Profiles ----------------------------------------------------------------
+
+async function loadProfiles() {
+  const sel = document.getElementById('profile-selector');
+  if (!sel) return;
+  const res = await window.api.listProfiles();
+  if (!res || !res.success) return;
+  sel.innerHTML = '';
+  for (const name of res.profiles) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name === 'default' ? 'Default' : name;
+    if (name === res.active) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  const del = document.getElementById('delete-profile-btn');
+  if (del) del.disabled = res.active === 'default';
+}
+
+async function switchToProfile(name) {
+  const res = await window.api.switchProfile(name);
+  if (!res || !res.success) { showToast(res?.error || 'Switch failed', 'error'); return; }
+  // Element dirs are profile-aware; reload them and repaint for the new profile.
+  dirs = await window.api.getDirectories();
+  await renderDeckPreview();
+  // The open element panel belongs to the old profile - close it.
+  document.getElementById('element-panel')?.classList.add('hidden');
+  selectedElement = null;
+  await loadProfiles();
+  showToast(`Profile: ${name === 'default' ? 'Default' : name}`, 'success');
+}
+
+function openNewProfileModal() {
+  const input = document.getElementById('new-profile-name');
+  if (input) input.value = '';
+  document.getElementById('new-profile-modal')?.classList.remove('hidden');
+  input?.focus();
+}
+
+function closeNewProfileModal() {
+  document.getElementById('new-profile-modal')?.classList.add('hidden');
+}
+
+async function confirmNewProfile() {
+  const name = (document.getElementById('new-profile-name')?.value || '').trim();
+  if (!name) { showToast('Enter a profile name', 'info'); return; }
+  const res = await window.api.createProfile(name);
+  if (!res || !res.success) { showToast(res?.error || 'Create failed', 'error'); return; }
+  closeNewProfileModal();
+  await switchToProfile(name);
+}
+
+async function deleteCurrentProfile() {
+  const name = document.getElementById('profile-selector')?.value;
+  if (!name || name === 'default') { showToast('Cannot delete the default layout', 'info'); return; }
+  if (!confirm(`Delete profile "${name}"? This removes profiles/${name}/ and its scripts.`)) return;
+  const res = await window.api.deleteProfile(name);
+  if (!res || !res.success) { showToast(res?.error || 'Delete failed', 'error'); return; }
+  showToast(`Deleted ${name}`, 'success');
+  await switchToProfile('default');
+}
+
 function setupEventListeners() {
   // Close panel button
   document.getElementById('close-element-panel')?.addEventListener('click', () => {
@@ -2278,6 +2352,20 @@ function setupEventListeners() {
 
   // Save button
   document.getElementById('save-element-btn')?.addEventListener('click', saveElementConfig);
+
+  // Profiles
+  document.getElementById('profile-selector')?.addEventListener('change', (e) => switchToProfile(e.target.value));
+  document.getElementById('add-profile-btn')?.addEventListener('click', openNewProfileModal);
+  document.getElementById('delete-profile-btn')?.addEventListener('click', deleteCurrentProfile);
+  document.getElementById('close-new-profile')?.addEventListener('click', closeNewProfileModal);
+  document.getElementById('cancel-new-profile')?.addEventListener('click', closeNewProfileModal);
+  document.getElementById('confirm-new-profile')?.addEventListener('click', confirmNewProfile);
+  document.getElementById('new-profile-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'new-profile-modal') closeNewProfileModal();
+  });
+  document.getElementById('new-profile-name')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmNewProfile();
+  });
 
   // Image buttons
   document.getElementById('browse-image-btn')?.addEventListener('click', browseImage);

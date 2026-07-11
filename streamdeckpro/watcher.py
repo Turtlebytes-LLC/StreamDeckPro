@@ -14,6 +14,10 @@ class FileWatcher:
         self.last_reload_check = 0
         self.reload_check_interval = 0.5
 
+        # Active profile tracking (.profile hot-reload)
+        self.last_profile_name = None
+        self.last_profile_mtime = 0
+
     def check_for_file_changes(self):
         """Return True if any watched image/label file was added/changed/removed."""
         current_time = time.time()
@@ -95,6 +99,37 @@ class FileWatcher:
                         logging.warning(f"Could not read brightness file: {e}")
         except Exception as e:
             logging.debug(f"Error checking brightness: {e}")
+
+    def check_profile_change(self):
+        """Redraw everything when the active profile changes.
+
+        Watches both the .profile file mtime and the resolved active name so a
+        switch fires a redraw whether the file was edited or created/removed.
+        Clears file_mtimes so the new profile's images register as fresh.
+        Returns True if a switch was applied.
+        """
+        try:
+            active = self.config.active_profile_name()
+        except AttributeError:
+            return False  # paths object is a plain config (tests) - no profiles
+
+        profile_file = self.config.PROFILE_FILE
+        mtime = profile_file.stat().st_mtime if profile_file.exists() else 0
+
+        if self.last_profile_name is None:
+            self.last_profile_name = active
+            self.last_profile_mtime = mtime
+            return False
+
+        if active != self.last_profile_name or mtime != self.last_profile_mtime:
+            logging.info(f"Profile switched: {self.last_profile_name} -> {active}")
+            self.last_profile_name = active
+            self.last_profile_mtime = mtime
+            self.file_mtimes = {}
+            if self.redraw:
+                self.redraw()
+            return True
+        return False
 
     def reload_displays(self):
         """Reload all button and touchscreen displays via the redraw callback."""

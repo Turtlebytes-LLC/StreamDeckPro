@@ -8,7 +8,9 @@
 #     source "$SDP_HOME/lib/sdp-helpers.sh"
 #
 # Provides: sdp_notify, sdp_set_image, sdp_set_label, sdp_state_get,
-#           sdp_state_set, sdp_toggle, sdp_log
+#           sdp_state_set, sdp_toggle, sdp_log, sdp_active_profile,
+#           sdp_profile_root, sdp_list_profiles, sdp_switch_profile,
+#           sdp_cycle_profile
 
 # Repo root (honours SDP_HOME exported by the daemon).
 SDP_HOME="${SDP_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -16,14 +18,67 @@ SDP_HOME="${SDP_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # Persistent key-value state directory.
 SDP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/streamdeckpro"
 
-# Map an element name (button-3, touch-1, dial-2, longswipe-left) to its dir.
+# sdp_active_profile - name in .profile, or "default" when absent/empty.
+sdp_active_profile() {
+    local name=""
+    [ -f "$SDP_HOME/.profile" ] && name="$(tr -d '[:space:]' < "$SDP_HOME/.profile")"
+    [ -n "$name" ] && echo "$name" || echo "default"
+}
+
+# sdp_profile_root - element dir root for the active profile.
+sdp_profile_root() {
+    local name
+    name="$(sdp_active_profile)"
+    if [ "$name" = "default" ] || [ ! -d "$SDP_HOME/profiles/$name" ]; then
+        echo "$SDP_HOME"
+    else
+        echo "$SDP_HOME/profiles/$name"
+    fi
+}
+
+# Map an element name (button-3, touch-1, dial-2, longswipe-left) to its dir,
+# resolved against the active profile.
 _sdp_element_dir() {
+    local root
+    root="$(sdp_profile_root)"
     case "$1" in
-        button-*)            echo "$SDP_HOME/buttons" ;;
-        dial-*)              echo "$SDP_HOME/dials" ;;
-        touch-*|longswipe-*) echo "$SDP_HOME/touchscreen" ;;
-        *)                   echo "$SDP_HOME/buttons" ;;
+        button-*)            echo "$root/buttons" ;;
+        dial-*)              echo "$root/dials" ;;
+        touch-*|longswipe-*) echo "$root/touchscreen" ;;
+        *)                   echo "$root/buttons" ;;
     esac
+}
+
+# sdp_list_profiles - "default" plus each dir under profiles/, one per line.
+sdp_list_profiles() {
+    echo "default"
+    [ -d "$SDP_HOME/profiles" ] && find "$SDP_HOME/profiles" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+}
+
+# sdp_switch_profile <name> - make <name> the active profile (daemon reloads).
+sdp_switch_profile() {
+    local name="$1"
+    printf '%s' "$name" > "$SDP_HOME/.profile"
+    sdp_log "switched to profile: $name"
+}
+
+# sdp_cycle_profile [prev] - advance to the next profile (or previous).
+sdp_cycle_profile() {
+    local dir="${1:-next}" cur profiles idx count target
+    cur="$(sdp_active_profile)"
+    mapfile -t profiles < <(sdp_list_profiles)
+    count="${#profiles[@]}"
+    [ "$count" -le 1 ] && return 0
+    idx=0
+    for i in "${!profiles[@]}"; do
+        [ "${profiles[$i]}" = "$cur" ] && idx="$i" && break
+    done
+    if [ "$dir" = "prev" ]; then
+        target=$(( (idx - 1 + count) % count ))
+    else
+        target=$(( (idx + 1) % count ))
+    fi
+    sdp_switch_profile "${profiles[$target]}"
 }
 
 # sdp_notify <title> <body> - desktop notification (falls back to echo).

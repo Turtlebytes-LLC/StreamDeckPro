@@ -14,6 +14,11 @@ BUTTONS_DIR = SDP_HOME / "buttons"
 DIALS_DIR = SDP_HOME / "dials"
 TOUCH_DIR = SDP_HOME / "touchscreen"
 
+# Profiles: profiles/<name>/{buttons,dials,touchscreen}/. The active profile is
+# named in PROFILE_FILE; absent/empty/"default" means the legacy top-level dirs.
+PROFILES_DIR = SDP_HOME / "profiles"
+PROFILE_FILE = SDP_HOME / ".profile"
+
 BRIGHTNESS_FILE = SDP_HOME / ".brightness"
 DEVICE_INFO_FILE = SDP_HOME / ".device-info.json"
 

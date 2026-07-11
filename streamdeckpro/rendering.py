@@ -109,11 +109,11 @@ def load_image_for_button(button_num, buttons_dir, button_size):
         if img:
             return img
 
-    for ext in ['.png', '.jpg', '.jpeg']:
+    for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']:
         img_path = buttons_dir / f"button-{button_num}{ext}"
         if img_path.exists():
             try:
-                img = Image.open(img_path)
+                img = Image.open(img_path)  # animated files land on frame 0
                 img = img.convert('RGB')
                 img = resize_with_aspect_ratio(img, btn_w, btn_h)
                 return img
@@ -131,6 +131,42 @@ def load_image_for_button(button_num, buttons_dir, button_size):
 
     draw.text((btn_w // 2, btn_h // 2), str(button_num), fill='#666666', font=font, anchor="mm")
     return img
+
+
+def load_animation_frames(image_path, size, max_frames=60):
+    """Extract animation frames from a GIF/APNG/WebP as (frames, durations_ms).
+
+    Returns (list[RGB Image], list[int]) sized to `size`. A static image yields
+    a single frame. Frame count is capped at max_frames to keep CPU sane (the
+    animated-render loop that consumes this is a follow-up). Returns ([], [])
+    if the file cannot be opened.
+    """
+    w, h = size
+    try:
+        img = Image.open(image_path)
+    except Exception as e:
+        logging.error(f"Error opening animation {image_path}: {e}")
+        return [], []
+
+    frames, durations = [], []
+    n = getattr(img, "n_frames", 1)
+    for i in range(min(n, max_frames)):
+        try:
+            img.seek(i)
+        except EOFError:
+            break
+        frame = resize_with_aspect_ratio(img.convert("RGB"), w, h)
+        frames.append(frame)
+        durations.append(int(img.info.get("duration", 100)) or 100)
+    return frames, durations
+
+
+def is_animated(image_path):
+    """True if the file has more than one frame."""
+    try:
+        return getattr(Image.open(image_path), "n_frames", 1) > 1
+    except Exception:
+        return False
 
 
 def load_label_for_button(button_num, buttons_dir):

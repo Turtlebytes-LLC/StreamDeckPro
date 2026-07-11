@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
@@ -8,11 +9,10 @@ const os = require('os');
 
 // Use the parent directory of configurator-electron (the project root)
 const STREAMDECK_DIR = path.join(__dirname, '..');
-const BUTTONS_DIR = path.join(STREAMDECK_DIR, 'buttons');
-const DIALS_DIR = path.join(STREAMDECK_DIR, 'dials');
-const TOUCH_DIR = path.join(STREAMDECK_DIR, 'touchscreen');
 const EXAMPLES_DIR = path.join(STREAMDECK_DIR, 'examples');
 const ICONS_DIR = path.join(STREAMDECK_DIR, 'icons');
+const PROFILES_DIR = path.join(STREAMDECK_DIR, 'profiles');
+const PROFILE_FILE = path.join(STREAMDECK_DIR, '.profile');
 
 let mainWindow;
 
@@ -142,14 +142,89 @@ ipcMain.handle('list-directory-recursive', async (event, dirPath) => {
 
 // Get directories
 ipcMain.handle('get-directories', async () => {
+  // Element dirs follow the active profile so the configurator always edits
+  // whatever the deck is showing. 'default' = the top-level layout.
+  const active = await readActiveProfile();
+  const root = active === 'default' ? STREAMDECK_DIR : path.join(PROFILES_DIR, active);
+  const useRoot = fsSync.existsSync(root) ? root : STREAMDECK_DIR;
   return {
     streamdeck: STREAMDECK_DIR,
-    buttons: BUTTONS_DIR,
-    dials: DIALS_DIR,
-    touch: TOUCH_DIR,
+    buttons: path.join(useRoot, 'buttons'),
+    dials: path.join(useRoot, 'dials'),
+    touch: path.join(useRoot, 'touchscreen'),
     examples: EXAMPLES_DIR,
-    icons: ICONS_DIR
+    icons: ICONS_DIR,
+    profile: active
   };
+});
+
+// --- Profiles ---------------------------------------------------------------
+// The 'default' profile is the top-level buttons/dials/touchscreen dirs; named
+// profiles live under profiles/<name>/. The active profile is named in
+// .profile; the daemon hot-reloads on change. Filesystem is the only contract.
+
+const PROFILE_NAME_RE = /^[A-Za-z0-9._-]+$/;
+
+async function readActiveProfile() {
+  try {
+    const name = (await fs.readFile(PROFILE_FILE, 'utf8')).trim();
+    return name || 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+ipcMain.handle('list-profiles', async () => {
+  try {
+    const names = ['default'];
+    try {
+      const entries = await fs.readdir(PROFILES_DIR, { withFileTypes: true });
+      for (const e of entries) if (e.isDirectory()) names.push(e.name);
+    } catch { /* profiles/ may not exist yet */ }
+    names.sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
+    return { success: true, active: await readActiveProfile(), profiles: names };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-profile', async (event, name) => {
+  if (!PROFILE_NAME_RE.test(name || '')) return { success: false, error: 'Invalid name (use letters, numbers, . _ -)' };
+  if (name === 'default') return { success: false, error: "'default' is the top-level layout" };
+  try {
+    for (const sub of ['buttons', 'dials', 'touchscreen']) {
+      await fs.mkdir(path.join(PROFILES_DIR, name, sub), { recursive: true });
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('switch-profile', async (event, name) => {
+  if (!PROFILE_NAME_RE.test(name || '')) return { success: false, error: 'Invalid name' };
+  if (name !== 'default' && !fsSync.existsSync(path.join(PROFILES_DIR, name))) {
+    return { success: false, error: `No such profile: ${name}` };
+  }
+  try {
+    await fs.writeFile(PROFILE_FILE, name);
+    return { success: true, active: name };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-profile', async (event, name) => {
+  if (!PROFILE_NAME_RE.test(name || '')) return { success: false, error: 'Invalid name' };
+  if (name === 'default') return { success: false, error: "Cannot delete the default layout" };
+  try {
+    await fs.rm(path.join(PROFILES_DIR, name), { recursive: true, force: true });
+    // If the deleted profile was active, fall back to default.
+    if (await readActiveProfile() === name) await fs.writeFile(PROFILE_FILE, 'default');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 // Browse for file
